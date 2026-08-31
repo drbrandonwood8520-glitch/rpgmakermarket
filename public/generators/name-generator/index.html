@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fantasy Name Generator</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="container">
+    <a class="back" href="/">← Back to store</a>
+    <h1>Fantasy Name Generator</h1>
+    <p class="summary">Click to roll NPC names. This is a placeholder tool — drop your real generator here.</p>
+    <p><button class="btn primary" id="roll">Roll a name</button></p>
+    <h2 id="out" style="font-size:2rem;">—</h2>
+  </main>
+  <script>
+    const A = ["Aer","Bran","Cael","Dor","Ely","Fen","Gwyn","Hal","Ith","Kor","Lyr","Mor","Nyx","Oren","Syl","Thal","Vael","Zeph"];
+    const B = ["adan","wen","ric","mir","oth","iel","dor","wyn","ara","eth","ian","us","ella","or","yn","aris"];
+    const pick = a => a[Math.floor(Math.random()*a.length)];
+    document.getElementById("roll").onclick = () => {
+      document.getElementById("out").textContent = pick(A) + pick(B);
+    };
+  </script>
+</body>
+</html>

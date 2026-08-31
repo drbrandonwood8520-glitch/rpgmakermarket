@@ -1,0 +1,104 @@
+:root {
+  --bg: #0f1220;
+  --panel: #191d33;
+  --panel-2: #222842;
+  --text: #e7e9f3;
+  --muted: #9aa0c0;
+  --accent: #7c6cff;
+  --accent-2: #22c55e;
+  --border: #2a2f4e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+a { color: inherit; text-decoration: none; }
+
+.site-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
+  background: var(--panel); position: sticky; top: 0; z-index: 10;
+}
+.brand { font-weight: 700; font-size: 1.1rem; }
+.site-header nav { display: flex; gap: 1.1rem; align-items: center; flex-wrap: wrap; }
+.site-header nav a { color: var(--muted); }
+.site-header nav a:hover { color: var(--text); }
+.site-header .support { color: var(--accent); font-weight: 600; }
+
+.container { max-width: 1040px; margin: 0 auto; padding: 1.5rem; }
+
+.hero { padding: 2rem 0 1rem; }
+.hero h1 { margin: 0 0 .25rem; font-size: 1.8rem; }
+.hero p { color: var(--muted); margin: 0; }
+
+.grid {
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  margin-top: 1.25rem;
+}
+.card {
+  display: block; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden; position: relative;
+  transition: transform .12s ease, border-color .12s ease;
+}
+.card:hover { transform: translateY(-3px); border-color: var(--accent); }
+.card.sponsored { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.badge {
+  position: absolute; top: .6rem; left: .6rem; z-index: 2;
+  background: var(--accent); color: #fff; font-size: .72rem; font-weight: 700;
+  padding: .18rem .5rem; border-radius: 999px;
+}
+.cover { height: 150px; background: #0b0e1c center/cover no-repeat; }
+.card-body { padding: .85rem 1rem 1rem; }
+.kind {
+  display: inline-block; font-size: .68rem; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); margin-bottom: .3rem;
+}
+.card-body h3 { margin: .1rem 0 .3rem; font-size: 1.05rem; }
+.card-body p { margin: 0 0 .6rem; color: var(--muted); font-size: .9rem; }
+.price { font-weight: 700; color: var(--accent-2); }
+.price.big { font-size: 1.4rem; }
+
+.back { color: var(--muted); display: inline-block; margin-bottom: 1rem; }
+
+.product { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
+.product-cover { height: 300px; border-radius: 14px; background: #0b0e1c center/cover no-repeat; }
+.product-info h1 { margin: .3rem 0 .5rem; }
+.summary { color: var(--muted); }
+.price-row { display: flex; align-items: center; gap: 1rem; margin: 1rem 0; }
+.description { color: #cdd2ee; }
+
+.btn {
+  display: inline-block; cursor: pointer; border: 1px solid var(--border);
+  background: var(--panel); color: var(--text); padding: .6rem 1.1rem;
+  border-radius: 10px; font-weight: 600; font-size: .95rem;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+
+.notice { max-width: 560px; margin: 2rem auto; text-align: center;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 2rem; }
+.notice.ok { border-color: var(--accent-2); }
+.error { color: #f87171; }
+.empty { color: var(--muted); }
+
+.admin { max-width: 720px; }
+.admin-head { display: flex; justify-content: space-between; align-items: center; }
+.admin-form, .admin-login form { display: grid; gap: .7rem; margin: 1rem 0 2rem; }
+.admin-form label, .admin-login label { display: grid; gap: .25rem; font-size: .9rem; color: var(--muted); }
+input, textarea, select {
+  background: #0d1022; color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: .55rem .65rem; font: inherit;
+}
+.admin-table { width: 100%; border-collapse: collapse; margin-top: .5rem; }
+.admin-table th, .admin-table td { text-align: left; padding: .5rem; border-bottom: 1px solid var(--border); }
+
+.site-footer { border-top: 1px solid var(--border); color: var(--muted);
+  text-align: center; padding: 1.5rem; margin-top: 3rem; font-size: .85rem; }
+.site-footer a { color: var(--muted); }
+
+@media (max-width: 720px) { .product { grid-template-columns: 1fr; } }
