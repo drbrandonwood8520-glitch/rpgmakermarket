@@ -57,15 +57,22 @@ const membershipCents = (env: Bindings) =>
 
 /* ================================ Database ================================ */
 
-async function listProducts(db: D1Database, kind?: string): Promise<Product[]> {
+type Filter = { kind?: string; q?: string; price?: string };
+async function listProducts(db: D1Database, f: Filter = {}): Promise<Product[]> {
+  const where = ["published = 1"];
+  const binds: any[] = [];
+  if (f.kind) { where.push("kind = ?"); binds.push(f.kind); }
+  if (f.price === "free") where.push("price_cents = 0");
+  else if (f.price === "paid") where.push("price_cents > 0");
+  else if (f.price === "le5") where.push("price_cents > 0 AND price_cents <= 500");
+  if (f.q) { where.push("(title LIKE ? OR summary LIKE ? OR description LIKE ?)"); const l = `%${f.q}%`; binds.push(l, l, l); }
   const { results } = await db
     .prepare(
-      `SELECT * FROM products WHERE published = 1
-       ${kind ? "AND kind = ?1" : ""}
+      `SELECT * FROM products WHERE ${where.join(" AND ")}
        ORDER BY CASE WHEN sponsored_until IS NOT NULL AND sponsored_until > datetime('now')
                      THEN 0 ELSE 1 END, created_at DESC`
     )
-    .bind(...(kind ? [kind] : []))
+    .bind(...binds)
     .all<Product>();
   return results ?? [];
 }
@@ -167,9 +174,44 @@ function socials(env: Bindings) {
   return links;
 }
 
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+function sidebarNav(env: Bindings, active?: string) {
+  const social = socials(env);
+  const tags = ["Battle systems", "Menus", "Maps", "Tilesets", "Music", "SFX", "HUD", "Fonts", "Weather", "Fast travel"];
+  const on = (k: string) => (active === k ? "on" : "");
+  return html`
+    <div class="side-sec">
+      <h3>Browse</h3>
+      <a class="${on("plugin")}" href="/?kind=plugin">Plugins</a>
+      <a class="${on("asset")}" href="/?kind=asset">Assets</a>
+      <a class="${on("generator")}" href="/?kind=generator">Generators</a>
+      <a href="/">Everything</a>
+    </div>
+    <div class="side-sec">
+      <h3>Engine</h3>
+      <a href="/?q=MZ">RPG Maker MZ</a>
+      <a href="/?q=MV">RPG Maker MV</a>
+    </div>
+    <div class="side-sec">
+      <h3>By price</h3>
+      <a href="/?price=free">Free</a>
+      <a href="/?price=le5">$5 or less</a>
+      <a href="/?price=paid">Paid</a>
+    </div>
+    <div class="side-sec">
+      <h3>Popular tags</h3>
+      <div class="tags">${raw(tags.map((t) => `<a href="/?q=${encodeURIComponent(t)}">${t}</a>`).join(""))}</div>
+    </div>
+    ${social.length
+      ? html`<div class="side-sec"><h3>Follow</h3><div class="side-social">${raw(social.map(([l, u]) => `<a href="${u}" target="_blank" rel="noopener">${l}</a>`).join(""))}</div></div>`
+      : ""}
+  `;
+}
+
 function layout(
   env: Bindings,
-  opts: { title: string; description?: string; body: HtmlEscapedString | Promise<HtmlEscapedString>; active?: string }
+  opts: { title: string; description?: string; body: HtmlEscapedString | Promise<HtmlEscapedString>; active?: string; sidebar?: boolean }
 ) {
   const desc = opts.description || "New plugins, assets, and tools for RPG Maker MZ & MV — every month.";
   const nav = (href: string, label: string, key: string) =>
@@ -190,13 +232,17 @@ function layout(
   <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/"><span class="brand-mark">◆</span> RPG Maker Market</a>
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>RPG Maker Market</a>
+    <form class="search" method="get" action="/">
+      <input name="q" type="search" placeholder="Search plugins, assets, tools…" aria-label="Search" />
+    </form>
     <nav class="mainnav">
+      <a href="/">Browse</a>
       ${nav("/?kind=plugin", "Plugins", "plugin")}
       ${nav("/?kind=asset", "Assets", "asset")}
       ${nav("/?kind=generator", "Generators", "generator")}
@@ -204,7 +250,9 @@ function layout(
       <a class="join-btn" href="/#join">Join free</a>
     </nav>
   </header>
-  <main>${opts.body}</main>
+  <main>${opts.sidebar
+    ? html`<div class="browse"><aside class="sidebar">${sidebarNav(env, opts.active)}</aside><div class="content">${opts.body}</div></div>`
+    : html`<div class="single">${opts.body}</div>`}</main>
   <footer class="site-footer">
     <div class="foot-cols">
       <div>
@@ -237,58 +285,54 @@ function emailForm(id: string, cta: string) {
 
 function productCard(p: Product) {
   const sp = isSponsored(p);
-  return html`<a class="window card ${sp ? "sponsored" : ""}" href="/p/${p.slug}">
-    ${sp ? html`<span class="chip gold">★ Sponsored</span>` : ""}
-    <span class="cover" style="background-image:url('${p.cover_image ?? ""}')"></span>
-    <span class="card-meta">
-      <span class="kind">${p.kind}</span>
-      <span class="ttl">${p.title}</span>
-      <span class="sub">${p.summary ?? ""}</span>
-      <span class="price ${p.price_cents === 0 ? "free" : "gold"}">${priceLabel(p.price_cents)}</span>
+  return html`<a class="gcard ${sp ? "sponsored" : ""}" href="/p/${p.slug}">
+    <span class="thumb" style="background-image:url('${p.cover_image ?? ""}')">
+      ${sp ? html`<span class="ribbon">Sponsored</span>` : ""}
+    </span>
+    <span class="gtitle">${p.title}</span>
+    <span class="gmeta">
+      <span class="gkind">${p.kind}</span>
+      <span class="gprice ${p.price_cents === 0 ? "free" : ""}">${priceLabel(p.price_cents)}</span>
     </span>
   </a>`;
 }
 
-function homePage(env: Bindings, products: Product[], kind?: string) {
+function homePage(env: Bindings, products: Product[], f: { kind?: string; q?: string; price?: string; filtered?: boolean }) {
   const price = priceLabel(membershipCents(env));
-  const heading = kind ? `${kind[0].toUpperCase()}${kind.slice(1)}s` : "New this week";
+  const grid = products.length
+    ? raw(products.map((p) => productCard(p).toString()).join(""))
+    : html`<div class="empty">Nothing here yet. <a href="/#join">Join the list</a> to hear when new items drop.</div>`;
+
+  if (f.filtered) {
+    const label = f.q
+      ? `Results for “${f.q}”`
+      : f.kind ? `${cap(f.kind)}s`
+      : f.price === "free" ? "Free items"
+      : f.price === "paid" ? "Paid items" : "$5 or less";
+    return html`
+      <div class="section-head"><h1 class="browse-title">${label}</h1><a class="text-link" href="/">Clear filters</a></div>
+      <div class="grid">${grid}</div>
+    `;
+  }
+
   return html`
-    <section class="hero" id="join">
-      <div class="window hero-window">
-        <p class="eyebrow"><span class="cursor">▸</span> Welcome, traveler</p>
-        <h1>New RPG Maker plugins &amp; assets — every month.</h1>
-        <p class="lede">Join the list and get this month's <strong>free plugin bundle</strong> in your inbox. Members get a fresh <strong>paid bundle every week</strong>, at no extra cost.</p>
-        ${emailForm("hero", "Claim free bundle")}
-        <p class="microcopy">No spam. One email when a bundle drops. Unsubscribe anytime.</p>
+    <section class="featured" id="join">
+      <div class="featured-body">
+        <p class="feat-kicker">Free monthly bundle</p>
+        <h1>New plugins &amp; assets for RPG Maker MZ &amp; MV — every month.</h1>
+        <p class="feat-sub">Join the list and get this month's free bundle. Members get a premium bundle emailed <strong>every week</strong>.</p>
+        ${emailForm("hero", "Join free")}
+        <p class="microcopy">No spam — one email when a bundle drops. <a href="/membership">See membership →</a></p>
       </div>
     </section>
 
-    <section class="row">
-      <div class="row-head"><h2>${heading}</h2>
-        ${kind ? html`<a class="text-link" href="/">Show everything</a>` : html`<a class="text-link" href="/membership">See membership →</a>`}
-      </div>
-      <div class="grid">
-        ${products.length
-          ? raw(products.map((p) => productCard(p).toString()).join(""))
-          : html`<div class="window empty"><p>The shop is being stocked. New plugins and assets are on the way — <a href="/#join">join the list</a> to hear first.</p></div>`}
-      </div>
-    </section>
+    <div class="section-head"><h2>New this week</h2><a class="text-link" href="/membership">Membership · ${price}/mo →</a></div>
+    <div class="grid">${grid}</div>
 
-    <section class="tiers">
-      <div class="window tier">
-        <p class="tier-name">Free list</p>
-        <p class="tier-price free">$0</p>
-        <ul><li>One free plugin bundle each month</li><li>First to hear about new drops</li><li>No account, just your email</li></ul>
-        ${emailForm("tier", "Join free")}
-      </div>
-      <div class="window tier featured">
-        <span class="chip gold">Best value</span>
-        <p class="tier-name">Membership</p>
-        <p class="tier-price gold">${price}<span>/mo</span></p>
-        <ul><li>A paid bundle emailed to you <strong>every week</strong></li><li>Everything in the free list</li><li>Directly supports new tools</li><li>Cancel anytime</li></ul>
-        <a class="btn gold" href="/membership">Become a member</a>
-      </div>
-    </section>
+    <a class="member-strip" href="/membership">
+      <span><strong>Get every premium plugin.</strong> Membership is ${price}/mo — a new paid bundle emailed to you weekly.</span>
+      <span class="btn gold">Become a member</span>
+    </a>
   `;
 }
 
@@ -529,8 +573,16 @@ const page = (env: Bindings, o: any) => layout(env, o);
 
 app.get("/", async (c) => {
   const kind = c.req.query("kind");
-  const products = await listProducts(c.env.DB, kind);
-  return c.html(page(c.env, { title: "Shop", body: homePage(c.env, products, kind), active: kind }));
+  const q = c.req.query("q");
+  const price = c.req.query("price");
+  const filtered = !!(kind || q || price);
+  const products = await listProducts(c.env.DB, { kind, q, price });
+  return c.html(page(c.env, {
+    title: filtered ? (q ? `Search: ${q}` : "Browse") : "Shop",
+    body: homePage(c.env, products, { kind, q, price, filtered }),
+    active: kind,
+    sidebar: true,
+  }));
 });
 
 app.post("/subscribe", async (c) => {
