@@ -28,7 +28,7 @@
     {
       "binding": "DB",
       "database_name": "rpgm-store-db",
-      "database_id": "REPLACE_WITH_YOUR_D1_ID",
+      "database_id": "26da7957-fb1d-437b-8e84-2171694c7baa",
       "migrations_dir": "migrations"
     }
   ],
