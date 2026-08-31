@@ -1,0 +1,52 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "rpgm-store",
+  "main": "src/index.ts",
+  // Set this to today's date when you start; bumping it opts into newer runtime behavior.
+  "compatibility_date": "2026-08-07",
+  // nodejs_compat is required by the Stripe SDK.
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // Your custom domains. Because the zone is on Cloudflare, deploying attaches
+  // these hostnames and provisions DNS + SSL automatically.
+  "routes": [
+    { "pattern": "rpgmakermarket.com", "custom_domain": true },
+    { "pattern": "www.rpgmakermarket.com", "custom_domain": true }
+  ],
+
+
+  // Static files (CSS, images, hosted generators) live in ./public and are
+  // served automatically. The ASSETS binding lets the Worker fall back to them.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+
+  // D1 database. Fill in database_id after you run: wrangler d1 create rpgm-store-db
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rpgm-store-db",
+      "database_id": "REPLACE_WITH_YOUR_D1_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // R2 bucket for downloadable files (plugins, asset packs, generator zips).
+  // Create it with: wrangler r2 bucket create rpgm-store-files
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      "bucket_name": "rpgm-store-files"
+    }
+  ]
+
+  // Secrets (set with `wrangler secret put NAME`, and in .dev.vars for local):
+  //   STRIPE_SECRET_KEY
+  //   STRIPE_WEBHOOK_SECRET
+  //   ADMIN_PASSWORD      (what you type at /admin/login)
+  //   ADMIN_TOKEN         (random string stored in your cookie once logged in)
+  //   KOFI_URL            (your Ko-fi page URL)
+  //   PATREON_URL         (optional)
+}

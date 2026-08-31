@@ -1,0 +1,9 @@
+# Copy this to `.dev.vars` for local dev (never commit the real one).
+# In production, set each with:  wrangler secret put NAME
+
+STRIPE_SECRET_KEY="sk_test_xxx"
+STRIPE_WEBHOOK_SECRET="whsec_xxx"
+ADMIN_PASSWORD="change-me-to-something-strong"
+ADMIN_TOKEN="a-long-random-string-used-in-your-login-cookie"
+KOFI_URL="https://ko-fi.com/yourpage"
+PATREON_URL="https://patreon.com/yourpage"
