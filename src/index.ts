@@ -209,9 +209,40 @@ function sidebarNav(env: Bindings, active?: string) {
   `;
 }
 
+const CONTENT_DDL = `CREATE TABLE IF NOT EXISTS content (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT (datetime('now')))`;
+async function loadContent(db: D1Database): Promise<Record<string, string>> {
+  await db.prepare(CONTENT_DDL).run();
+  const { results } = await db.prepare(`SELECT key, value FROM content`).all<{ key: string; value: string }>();
+  const m: Record<string, string> = {};
+  for (const r of results ?? []) m[r.key] = r.value;
+  return m;
+}
+async function saveContent(db: D1Database, updates: Record<string, string>) {
+  await db.prepare(CONTENT_DDL).run();
+  const entries = Object.entries(updates).filter(([k]) => /^[a-z0-9_]+$/i.test(k));
+  for (const [k, v] of entries) {
+    await db.prepare(
+      `INSERT INTO content (key, value) VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now')`
+    ).bind(k, String(v).slice(0, 4000)).run();
+  }
+}
+const editAttr = (edit: boolean | undefined, key: string) =>
+  edit ? raw(` data-k="${key}" contenteditable="true" class="editable"`) : raw("");
+
+function editBar() {
+  return html`
+    <div id="edbar">
+      <span>✎ Editing — click any highlighted text, then Save.</span>
+      <button id="edsave" type="button">Save changes</button>
+      <a href="?">Exit</a>
+    </div>
+    <script>${raw(`(function(){var s=document.getElementById('edsave');s.addEventListener('click',async function(){s.disabled=true;s.textContent='Saving…';var u={};document.querySelectorAll('[data-k]').forEach(function(e){u[e.getAttribute('data-k')]=e.innerText.trim();});try{var r=await fetch('/admin/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({updates:u})});if(r.ok){location.href=location.pathname;}else{throw 0;}}catch(e){s.disabled=false;s.textContent='Save failed — retry';}});})();`)}</script>`;
+}
+
 function layout(
   env: Bindings,
-  opts: { title: string; description?: string; body: HtmlEscapedString | Promise<HtmlEscapedString>; active?: string; sidebar?: boolean }
+  opts: { title: string; description?: string; body: HtmlEscapedString | Promise<HtmlEscapedString>; active?: string; sidebar?: boolean; admin?: boolean; edit?: boolean; announce?: string }
 ) {
   const desc = opts.description || "New plugins, assets, and tools for RPG Maker MZ & MV — every month.";
   const nav = (href: string, label: string, key: string) =>
@@ -247,9 +278,13 @@ function layout(
       ${nav("/?kind=asset", "Assets", "asset")}
       ${nav("/?kind=generator", "Generators", "generator")}
       ${nav("/membership", "Membership", "membership")}
+      ${opts.admin && !opts.edit ? raw('<a class="edit-toggle" href="?edit=1">✎ Edit</a>') : ""}
       <a class="join-btn" href="/#join">Join free</a>
     </nav>
   </header>
+  ${opts.announce || opts.edit
+    ? html`<div class="announce"${editAttr(opts.edit, "announcement")}>${opts.announce || (opts.edit ? "Add an announcement…" : "")}</div>`
+    : ""}
   <main>${opts.sidebar
     ? html`<div class="browse"><aside class="sidebar">${sidebarNav(env, opts.active)}</aside><div class="content">${opts.body}</div></div>`
     : html`<div class="single">${opts.body}</div>`}</main>
@@ -270,6 +305,7 @@ function layout(
     </div>
     <p class="foot-fine">Built on Cloudflare · <a href="/admin">Admin</a> · &copy; ${new Date().getFullYear()}</p>
   </footer>
+  ${opts.edit ? editBar() : ""}
   ${beacon}
 </body>
 </html>`;
@@ -306,8 +342,10 @@ function productCard(p: Product) {
   </a>`;
 }
 
-function homePage(env: Bindings, products: Product[], f: { kind?: string; q?: string; price?: string; filtered?: boolean }) {
+function homePage(env: Bindings, products: Product[], f: { kind?: string; q?: string; price?: string; filtered?: boolean }, content: Record<string, string> = {}, edit = false) {
   const price = priceLabel(membershipCents(env));
+  const c = (k: string, d: string) => content[k] ?? d;
+  const ea = (k: string) => editAttr(edit, k);
   const grid = products.length
     ? raw(products.map((p) => productCard(p).toString()).join(""))
     : html`<div class="empty">Nothing here yet. <a href="/#join">Join the list</a> to hear when new items drop.</div>`;
@@ -327,15 +365,15 @@ function homePage(env: Bindings, products: Product[], f: { kind?: string; q?: st
   return html`
     <section class="featured" id="join">
       <div class="featured-body">
-        <p class="feat-kicker">Free monthly bundle</p>
-        <h1>New plugins &amp; assets for RPG Maker MZ &amp; MV — every month.</h1>
-        <p class="feat-sub">Join the list and get this month's free bundle. Members get a premium bundle emailed <strong>every week</strong>.</p>
+        <p class="feat-kicker"${ea("hero_kicker")}>${c("hero_kicker", "Free monthly bundle")}</p>
+        <h1${ea("hero_title")}>${c("hero_title", "New plugins & assets for RPG Maker MZ & MV — every month.")}</h1>
+        <p class="feat-sub"${ea("hero_sub")}>${c("hero_sub", "Join the list and get this month's free bundle. Members get a premium bundle emailed every week.")}</p>
         ${emailForm("hero", "Join free")}
         <p class="microcopy">No spam — one email when a bundle drops. <a href="/membership">See membership →</a></p>
       </div>
     </section>
 
-    <div class="section-head"><h2>New this week</h2><a class="text-link" href="/membership">Membership · ${price}/mo →</a></div>
+    <div class="section-head"><h2${ea("section_new")}>${c("section_new", "New this week")}</h2><a class="text-link" href="/membership">Membership · ${price}/mo →</a></div>
     <div class="grid">${grid}</div>
 
     <a class="member-strip" href="/membership">
@@ -591,11 +629,17 @@ app.get("/", async (c) => {
   const price = c.req.query("price");
   const filtered = !!(kind || q || price);
   const products = await listProducts(c.env.DB, { kind, q, price });
+  const content = await loadContent(c.env.DB);
+  const admin = !!c.env.ADMIN_TOKEN && getCookie(c, "admin") === c.env.ADMIN_TOKEN;
+  const edit = admin && c.req.query("edit") === "1" && !filtered;
   return c.html(page(c.env, {
     title: filtered ? (q ? `Search: ${q}` : "Browse") : "Shop",
-    body: homePage(c.env, products, { kind, q, price, filtered }),
+    body: homePage(c.env, products, { kind, q, price, filtered }, content, edit),
     active: kind,
     sidebar: true,
+    admin,
+    edit,
+    announce: content["announcement"] || "",
   }));
 });
 
@@ -772,6 +816,12 @@ app.get("/admin", async (c) => {
   return c.html(page(c.env, { title: "Admin", body: adminDash(cts, products, results ?? []) }));
 });
 app.post("/admin/logout", (c) => { deleteCookie(c, "admin", { path: "/" }); return c.redirect("/admin/login"); });
+
+app.post("/admin/content", async (c) => {
+  const body = await c.req.json().catch(() => ({} as any));
+  await saveContent(c.env.DB, (body && body.updates) || {});
+  return c.json({ ok: true });
+});
 
 app.get("/admin/subscribers.csv", async (c) => {
   const { results } = await c.env.DB.prepare(
