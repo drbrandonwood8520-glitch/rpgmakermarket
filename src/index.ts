@@ -283,12 +283,21 @@ function emailForm(id: string, cta: string) {
   </form>`;
 }
 
+const HUES = [4, 168, 268, 38, 142, 210];
+function hueOf(slug: string) {
+  let h = 0;
+  for (const ch of slug) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return HUES[h % HUES.length];
+}
+
 function productCard(p: Product) {
   const sp = isSponsored(p);
+  const ribbon = sp ? html`<span class="ribbon">Sponsored</span>` : "";
+  const thumb = p.cover_image
+    ? html`<span class="thumb" style="background-image:url('${p.cover_image}')">${ribbon}</span>`
+    : html`<span class="thumb ph" style="--h:${hueOf(p.slug)}"><span class="ph-txt">${p.title}</span>${ribbon}</span>`;
   return html`<a class="gcard ${sp ? "sponsored" : ""}" href="/p/${p.slug}">
-    <span class="thumb" style="background-image:url('${p.cover_image ?? ""}')">
-      ${sp ? html`<span class="ribbon">Sponsored</span>` : ""}
-    </span>
+    ${thumb}
     <span class="gtitle">${p.title}</span>
     <span class="gmeta">
       <span class="gkind">${p.kind}</span>
@@ -338,9 +347,12 @@ function homePage(env: Bindings, products: Product[], f: { kind?: string; q?: st
 
 function productPage(env: Bindings, p: Product) {
   const paid = p.price_cents > 0;
+  const direct = !!p.external_url && p.kind !== "generator";
   let action;
   if (p.kind === "generator" && p.external_url)
-    action = html`<a class="btn gold" href="${p.external_url}">Open generator</a>`;
+    action = html`<a class="btn gold" href="${p.external_url}">Open in browser</a>`;
+  else if (direct)
+    action = html`<a class="btn gold" href="${p.external_url}" download>Download${p.price_cents === 0 ? " free" : ""}</a>`;
   else if (paid)
     action = html`<form method="post" action="/buy/${p.slug}"><button class="btn gold" type="submit">Buy · ${priceLabel(p.price_cents)}</button></form>`;
   else
@@ -350,7 +362,9 @@ function productPage(env: Bindings, p: Product) {
     <section class="detail">
       <a class="text-link back" href="/">← Back to shop</a>
       <div class="detail-grid">
-        <div class="window cover-lg" style="background-image:url('${p.cover_image ?? ""}')"></div>
+        ${p.cover_image
+          ? html`<div class="window cover-lg" style="background-image:url('${p.cover_image}')"></div>`
+          : html`<div class="window cover-lg ph" style="--h:${hueOf(p.slug)}"><span class="ph-txt big">${p.title}</span></div>`}
         <div class="detail-info">
           <span class="kind">${p.kind}</span>
           <h1>${p.title}</h1>
