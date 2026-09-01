@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Questwright — RPG Maker MZ Questline Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#15161e; --bg2:#1c1e29; --bg3:#232635; --bg4:#2a2d3f;
+  --line:#313449; --line2:#3d4059;
+  --ink:#ece8dd; --muted:#9b9db4; --faint:#6b6d84;
+  --gold:#e8b45c; --gold-dim:#b8894a; --gold-soft:rgba(232,180,92,.12);
+  --emerald:#6bc7a6; --violet:#a98bf0; --rose:#e8888c; --sky:#7db8e8;
+  --danger:#e8888c;
+  --disp:'Cinzel',Georgia,'Times New Roman',serif;
+  --body:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+  --radius:9px;
+  --shadow:0 6px 24px -8px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:
+    radial-gradient(1200px 700px at 82% -10%, rgba(232,180,92,.06), transparent 60%),
+    radial-gradient(900px 600px at 5% 110%, rgba(169,139,240,.06), transparent 55%),
+    var(--bg);
+  color:var(--ink); font-family:var(--body); font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;cursor:pointer;color:inherit}
+input,select,textarea{font-family:inherit;font-size:13px}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- Top bar ---------- */
+.topbar{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 18px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--bg2),rgba(28,30,41,.6));
+  position:sticky;top:0;z-index:30;backdrop-filter:blur(6px);
+}
+.brand{display:flex;align-items:center;gap:11px;margin-right:4px}
+.brand .mark{
+  width:34px;height:34px;border-radius:8px;display:grid;place-items:center;
+  background:radial-gradient(circle at 35% 30%,#3a3208,#141018);
+  border:1px solid var(--gold-dim);color:var(--gold);
+  font-family:var(--disp);font-weight:700;font-size:22px;line-height:1;
+  box-shadow:inset 0 0 12px rgba(232,180,92,.25);
+}
+.brand h1{font-family:var(--disp);font-weight:600;font-size:17px;letter-spacing:.5px;margin:0;color:var(--ink)}
+.brand small{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:2.5px;color:var(--faint);text-transform:uppercase;margin-top:2px}
+
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--faint);font-family:var(--mono)}
+.inp{
+  background:var(--bg3);border:1px solid var(--line);border-radius:7px;color:var(--ink);
+  padding:6px 9px;outline:none;transition:border-color .15s, box-shadow .15s;
+}
+.inp:focus{border-color:var(--gold-dim);box-shadow:0 0 0 3px var(--gold-soft)}
+.inp.mini{width:66px;text-align:center;font-family:var(--mono)}
+select.inp{cursor:pointer}
+.spacer{flex:1 1 auto}
+.savechip{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.5px;white-space:nowrap}
+.savechip b{color:var(--emerald)}
+
+.btn{
+  background:var(--bg3);border:1px solid var(--line2);border-radius:7px;
+  padding:7px 12px;font-size:12.5px;font-weight:500;color:var(--ink);
+  transition:background .15s,border-color .15s,transform .05s;white-space:nowrap;
+}
+.btn:hover{background:var(--bg4);border-color:var(--gold-dim)}
+.btn:active{transform:translateY(1px)}
+.btn.gold{background:linear-gradient(180deg,#f0c069,#d69a41);color:#241a07;border-color:#f0c069;font-weight:600}
+.btn.gold:hover{filter:brightness(1.06)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:5px 9px;font-size:11.5px}
+.btn.danger:hover{border-color:var(--danger);color:var(--danger);background:rgba(232,136,140,.08)}
+
+/* ---------- Mode tabs ---------- */
+.modes{display:flex;gap:4px;background:var(--bg3);padding:4px;border-radius:9px;border:1px solid var(--line)}
+.modes button{background:transparent;border:none;padding:6px 14px;border-radius:6px;font-size:12.5px;font-weight:500;color:var(--muted)}
+.modes button.active{background:var(--gold-soft);color:var(--gold)}
+
+/* ---------- Layout ---------- */
+.stage{display:flex;min-height:calc(100vh - 62px)}
+.rail{
+  width:288px;flex:0 0 288px;border-right:1px solid var(--line);
+  background:var(--bg2);padding:14px;overflow-y:auto;max-height:calc(100vh - 62px);position:sticky;top:62px;
+}
+.center{flex:1 1 auto;padding:22px 26px;overflow-y:auto;max-width:920px}
+.hidden{display:none!important}
+
+.rail h2, .panel-h{
+  font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--faint);margin:2px 0 10px;display:flex;align-items:center;gap:7px;
+}
+.rail-actions{display:flex;gap:7px;margin-bottom:12px}
+.rail-actions .btn{flex:1;justify-content:center;text-align:center}
+
+.qlist{display:flex;flex-direction:column;gap:6px}
+.qcard{
+  border:1px solid var(--line);background:var(--bg3);border-radius:8px;padding:9px 11px;
+  cursor:pointer;transition:border-color .15s,background .15s;position:relative;
+}
+.qcard:hover{border-color:var(--line2)}
+.qcard.sel{border-color:var(--gold-dim);background:linear-gradient(180deg,rgba(232,180,92,.10),var(--bg3))}
+.qcard .qtop{display:flex;align-items:center;gap:8px}
+.marker{color:var(--gold);font-family:var(--disp);font-weight:700;font-size:17px;line-height:1;flex:0 0 auto}
+.qcard .qname{font-weight:600;font-size:13.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qcard .qmeta{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:4px;padding-left:25px}
+.qcard .del{
+  position:absolute;top:7px;right:7px;opacity:0;background:transparent;border:none;
+  color:var(--faint);font-size:15px;line-height:1;padding:2px 5px;border-radius:5px;transition:opacity .15s;
+}
+.qcard:hover .del{opacity:1}
+.qcard .del:hover{color:var(--danger);background:rgba(232,136,140,.1)}
+
+/* ---------- Editor ---------- */
+.q-head{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
+.q-title-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.q-title-row .field{flex:1;min-width:180px}
+.q-title-row .inp{width:100%}
+.q-title-row .titlefield .inp{font-family:var(--disp);font-size:19px;font-weight:600;color:var(--gold)}
+
+.stages-h{display:flex;align-items:center;justify-content:space-between;margin:6px 0 12px}
+.stages-h .panel-h{margin:0}
+.pagecount{font-family:var(--mono);font-size:10px;color:var(--faint)}
+
+.stage-card{
+  border:1px solid var(--line);border-left:3px solid var(--type,#7db8e8);
+  background:var(--bg2);border-radius:9px;margin-bottom:12px;overflow:hidden;
+}
+.stage-card .sc-head{display:flex;align-items:center;gap:10px;padding:11px 13px;background:rgba(255,255,255,.015)}
+.sc-num{
+  font-family:var(--disp);font-weight:700;font-size:13px;color:var(--type,#7db8e8);
+  width:26px;height:26px;border-radius:6px;display:grid;place-items:center;
+  border:1px solid var(--type,#7db8e8);flex:0 0 auto;background:rgba(0,0,0,.2);
+}
+.sc-type-pill{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--type,#7db8e8);font-weight:600}
+.sc-obj-preview{flex:1;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-tools{display:flex;gap:3px;flex:0 0 auto}
+.icbtn{background:transparent;border:1px solid transparent;border-radius:5px;color:var(--faint);padding:3px 7px;font-size:13px;line-height:1}
+.icbtn:hover{color:var(--ink);border-color:var(--line2);background:var(--bg3)}
+.icbtn.del:hover{color:var(--danger);border-color:var(--danger)}
+
+.sc-body{padding:13px;border-top:1px solid var(--line);display:grid;gap:11px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.grid3{display:grid;grid-template-columns:1fr 90px 1fr;gap:11px}
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--faint);font-family:var(--mono)}
+.f .inp{width:100%}
+textarea.inp{resize:vertical;min-height:44px;line-height:1.45}
+.reward-row{display:grid;grid-template-columns:1fr 1.4fr 70px 1fr;gap:9px;padding-top:4px;border-top:1px dashed var(--line);margin-top:2px}
+.reward-row .reward-lbl{grid-column:1/-1;font-family:var(--mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold-dim);margin-bottom:-4px}
+.rep-block{margin-top:2px}
+.rep-head{font-family:var(--mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--violet);margin-bottom:6px}
+.rep-row{display:flex;gap:7px;align-items:center;margin-bottom:6px}
+.rep-row select{flex:1;max-width:220px}
+.rep-row .inp.mini{width:74px}
+.rep-rm{background:transparent;border:none;color:var(--faint);font-size:15px;line-height:1;padding:2px 6px;border-radius:5px}
+.rep-rm:hover{color:var(--danger);background:rgba(232,136,140,.1)}
+.rep-add{color:var(--violet);border-color:var(--line2)}
+.rep-add:hover{border-color:var(--violet)}
+
+/* faction rail */
+.fac-panel{margin-top:20px;border-top:1px solid var(--line);padding-top:14px}
+.fac-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.fac-row .sw{width:14px;height:14px;border-radius:4px;flex:0 0 auto;border:1px solid var(--line2)}
+.fac-row .fid{width:66px;font-family:var(--mono);font-size:11px}
+.fac-row .fname{flex:1}
+.fac-row .frm{background:transparent;border:none;color:var(--faint);font-size:14px;padding:2px 5px}
+.fac-row .frm:hover{color:var(--danger)}
+.fac-note{font-size:11px;color:var(--faint);margin-bottom:10px;line-height:1.45}
+
+/* branches */
+.branches{display:grid;gap:8px}
+.branch{display:grid;grid-template-columns:20px 1fr;gap:8px;align-items:start;background:var(--bg3);border:1px solid var(--line);border-radius:7px;padding:9px}
+.branch .bletter{font-family:var(--disp);font-weight:700;color:var(--violet);text-align:center;padding-top:6px}
+.branch-fields{display:grid;gap:7px}
+.branch .rm{justify-self:end;background:transparent;border:none;color:var(--faint);font-size:13px}
+.branch .rm:hover{color:var(--danger)}
+
+.addstage{
+  display:flex;gap:7px;flex-wrap:wrap;margin-top:6px;padding:12px;border:1px dashed var(--line2);
+  border-radius:9px;background:rgba(255,255,255,.01)
+}
+.addstage .lbl{width:100%;font-family:var(--mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--faint);margin-bottom:2px}
+.tbtn{
+  display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--line);
+  border-radius:7px;padding:7px 11px;font-size:12px;color:var(--ink)
+}
+.tbtn:hover{border-color:var(--c);color:var(--c)}
+.tbtn .dot{width:8px;height:8px;border-radius:50%;background:var(--c)}
+
+.empty{
+  text-align:center;padding:80px 24px;color:var(--faint);
+}
+.empty .big{font-family:var(--disp);font-size:22px;color:var(--muted);margin-bottom:8px}
+.empty .marker{font-size:40px;display:block;margin-bottom:14px}
+
+/* ---------- Output ---------- */
+.out-wrap{padding:22px 26px;max-width:1000px;margin:0 auto}
+.out-tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:12px}
+.out-tabs button{background:transparent;border:1px solid var(--line);border-radius:7px;padding:7px 13px;color:var(--muted);font-size:12.5px;font-weight:500}
+.out-tabs button.active{background:var(--gold-soft);border-color:var(--gold-dim);color:var(--gold)}
+.legend{
+  background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:14px 16px;margin-bottom:18px;font-size:12.5px;color:var(--muted)
+}
+.legend b{color:var(--ink)}
+.legend .row{display:flex;gap:9px;align-items:baseline;margin-top:6px}
+.legend .k{font-family:var(--disp);color:var(--gold);font-weight:700;width:18px;flex:0 0 auto}
+
+table.reg{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+table.reg th{text-align:left;color:var(--faint);font-weight:500;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line2)}
+table.reg td{padding:8px 10px;border-bottom:1px solid var(--line)}
+table.reg tr:hover td{background:rgba(255,255,255,.015)}
+.tag-v{color:var(--sky)} .tag-s{color:var(--emerald)}
+.reg-id{color:var(--gold);font-weight:600}
+
+.npc-block{border:1px solid var(--line);border-radius:10px;margin-bottom:14px;overflow:hidden;background:var(--bg2)}
+.npc-head{display:flex;align-items:center;gap:11px;padding:12px 15px;cursor:pointer;background:rgba(255,255,255,.02)}
+.npc-head .who{font-family:var(--disp);font-size:15px;font-weight:600;flex:1}
+.npc-head .qmark{color:var(--gold);font-family:var(--disp);font-weight:700;font-size:18px}
+.npc-head .cnt{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.npc-head .chev{color:var(--faint);transition:transform .2s}
+.npc-block.open .chev{transform:rotate(90deg)}
+.npc-body{display:none;padding:4px 15px 15px}
+.npc-block.open .npc-body{display:block}
+
+.page-spec{border:1px solid var(--line);border-left:3px solid var(--type,#7db8e8);border-radius:8px;margin-top:12px;overflow:hidden}
+.page-spec .ps-head{display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--bg3);flex-wrap:wrap}
+.ps-badge{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.5px;padding:2px 8px;border-radius:5px;background:var(--gold-soft);color:var(--gold)}
+.ps-cond{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.ps-cond b{color:var(--sky)}
+.ps-title{font-weight:600;font-size:12.5px}
+.ps-body{padding:11px 13px}
+.ps-body .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--faint);margin:2px 0 6px}
+ol.cmds{margin:0;padding-left:20px;display:grid;gap:5px}
+ol.cmds li{font-size:12.5px;color:var(--ink)}
+ol.cmds li .cmd{font-family:var(--mono);font-size:11.5px;color:var(--gold)}
+ol.cmds li .say{color:var(--muted);font-style:italic}
+ol.cmds .sub{list-style:none;margin:4px 0 2px -6px;padding-left:14px;border-left:2px solid var(--line2);display:grid;gap:4px}
+
+.note-tip{font-size:12px;color:var(--faint);margin-top:8px;padding:8px 11px;background:rgba(125,184,232,.06);border:1px solid rgba(125,184,232,.18);border-radius:7px}
+.note-tip.warn{background:rgba(232,180,92,.06);border-color:rgba(232,180,92,.22);color:var(--gold-dim)}
+.note-tip b{color:var(--ink)}
+
+.flow{display:grid;gap:18px}
+.flow-line{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--bg2)}
+.flow-line .fl-name{font-family:var(--disp);font-size:15px;font-weight:600;color:var(--gold);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.flow-steps{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.flow-node{border:1px solid var(--type,#7db8e8);color:var(--type,#7db8e8);border-radius:20px;padding:5px 12px;font-size:11.5px;font-family:var(--mono);background:rgba(0,0,0,.15);white-space:nowrap}
+.flow-node .n{opacity:.7;margin-right:5px}
+.flow-arrow{color:var(--faint)}
+.flow-fork{display:flex;flex-direction:column;gap:5px;padding:5px 0}
+.flow-fork .fk{border:1px dashed var(--violet);color:var(--violet);border-radius:16px;padding:3px 10px;font-size:11px;font-family:var(--mono)}
+
+.exp-area{width:100%;min-height:280px;background:#0f1017;border:1px solid var(--line);border-radius:9px;color:var(--muted);font-family:var(--mono);font-size:11.5px;padding:13px;resize:vertical;line-height:1.55}
+.exp-actions{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+
+.toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--bg4);border:1px solid var(--gold-dim);color:var(--ink);
+  padding:10px 18px;border-radius:9px;font-size:13px;box-shadow:var(--shadow);
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:900px){
+  .stage{flex-direction:column}
+  .rail{width:100%;flex:none;position:static;max-height:none;border-right:none;border-bottom:1px solid var(--line)}
+  .center{max-width:none;padding:18px}
+  .grid2,.grid3,.reward-row{grid-template-columns:1fr}
+  .center{overflow:visible}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">!</div>
+    <div><h1>Questwright</h1><small>MZ Questline Forge</small></div>
+  </div>
+
+  <div class="field"><label>Project</label><input id="projName" class="inp" style="width:150px" placeholder="My Game"></div>
+  <div class="field"><label>Theme</label>
+    <select id="projTheme" class="inp">
+      <option value="fantasy">Fantasy</option>
+      <option value="scifi">Sci-Fi</option>
+      <option value="horror">Horror</option>
+      <option value="mystery">Mystery</option>
+      <option value="slice">Slice-of-Life</option>
+    </select>
+  </div>
+  <div class="field"><label>Switch base</label><input id="baseSwitch" class="inp mini" type="number" min="1" value="21"></div>
+  <div class="field"><label>Var base</label><input id="baseVar" class="inp mini" type="number" min="1" value="21"></div>
+
+  <div class="spacer"></div>
+  <div class="modes">
+    <button id="modeDesign" class="active">Design</button>
+    <button id="modeOutput">Output</button>
+  </div>
+  <span class="savechip" id="saveChip">saved <b>●</b></span>
+</div>
+
+<!-- DESIGN MODE -->
+<div class="stage" id="designView">
+  <aside class="rail">
+    <h2><span class="marker">!</span> Questlines</h2>
+    <div class="rail-actions">
+      <button class="btn gold sm" id="addQuest">+ New</button>
+      <button class="btn ghost sm" id="addSkeleton" title="Add a themed 3-stage starter you can rename">+ Starter</button>
+    </div>
+    <div class="qlist" id="qlist"></div>
+    <div class="fac-panel" id="facPanel"></div>
+  </aside>
+
+  <main class="center" id="editor"></main>
+</div>
+
+<!-- OUTPUT MODE -->
+<div class="out-wrap hidden" id="outputView">
+  <div class="out-tabs">
+    <button data-otab="recipe" class="active">Build by NPC</button>
+    <button data-otab="plugin">One-click plugin</button>
+    <button data-otab="registry">Switch / Variable registry</button>
+    <button data-otab="flow">Flow map</button>
+    <button data-otab="export">Save / Load</button>
+  </div>
+  <div id="outBody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Questwright — RPG Maker MZ Questline Generator
+   Pure client-side. Persists via window.storage when present;
+   falls back to in-memory, with JSON export/import always.
+   ============================================================ */
+
+const TYPES = {
+  talk:       {label:'Talk',        color:'#7db8e8', npcLabel:'Talk to (NPC)'},
+  investigate:{label:'Investigate', color:'#a98bf0', npcLabel:'Object / place (event)'},
+  fetch:      {label:'Fetch',       color:'#e8b45c', npcLabel:'Turn in to (NPC)'},
+  deliver:    {label:'Deliver',     color:'#6bc7a6', npcLabel:'Deliver to (NPC)'},
+  hunt:       {label:'Hunt',        color:'#e8888c', npcLabel:'Report to (NPC)'},
+  choice:     {label:'Choice',      color:'#a98bf0', npcLabel:'Choice given by (NPC)'},
+};
+
+const THEMES = {
+  fantasy:{
+    names:['The Lost Locket','Wolves at the Gate','Herbs for the Healer','The Sunken Signet','A Debt in Silver'],
+    givers:['Village Elder','Innkeeper','Court Mage','Blacksmith','Wandering Bard'],
+    npc:['Old Farmer','Temple Priest','Forest Hermit','Captain of the Guard'],
+    items:['healing herb','iron ore','ancient locket','wolf pelt','sealed letter'],
+    enemies:['dire wolf','bandit','giant rat','skeleton'],
+    place:['old well','shrine ruins','hollow oak','cellar door'],
+  },
+  scifi:{
+    names:['Signal from Deck 7','Coolant Leak','The Missing Drone','Rogue AI Handshake','Cargo Manifest'],
+    givers:['Station Chief','Ship AI','Quartermaster','Chief Engineer','Recon Pilot'],
+    npc:['Dock Worker','Med-Bay Tech','Security Officer','Cargo Loader'],
+    items:['power cell','data chip','coolant canister','access card','spare servo'],
+    enemies:['maintenance drone','mutant','rogue turret','void spider'],
+    place:['airlock B','reactor core','cargo bay 3','comms array'],
+  },
+  horror:{
+    names:['Whispers in the Cellar','The Locked Chapel','Do Not Sleep','Missing Persons','The Ledger of Names'],
+    givers:['Frightened Widow','Town Constable','Asylum Warden','Old Gravedigger','Nervous Priest'],
+    npc:['Pale Child','Tavern Keeper','Coroner','Lighthouse Keeper'],
+    items:['tarnished key','bloodstained diary','silver charm','candle stub','torn photograph'],
+    enemies:['crawling thing','possessed dog','shade','wax figure'],
+    place:['chapel door','flooded cellar','attic trunk','family crypt'],
+  },
+  mystery:{
+    names:['Who Took the Ring?','The Alibi','A Note Under the Door','Follow the Money','The Second Key'],
+    givers:['Detective Reyes','Anxious Heir','Hotel Manager','Retired Judge','Suspicious Butler'],
+    npc:['Bartender','Maid','Night Porter','Antiques Dealer'],
+    items:['torn ticket','ledger page','stolen ring','lipstick note','spare key'],
+    enemies:['hired thug','guard dog','masked intruder'],
+    place:['locked study','hotel safe','back alley','clock tower'],
+  },
+  slice:{
+    names:['The Bake Sale','A Cat on the Roof','Festival Lanterns','The Perfect Gift','Lost & Found'],
+    givers:['Baker','Schoolteacher','Shopkeeper','Grandma Yui','Club President'],
+    npc:['Classmate','Mail Carrier','Gardener','Café Owner'],
+    items:['flour sack','paper lantern','stray kitten','wrapped gift','umbrella'],
+    enemies:['rowdy raccoon','swarm of bees'],
+    place:['rooftop','notice board','fountain','back garden'],
+  },
+};
+
+let project = null;
+let selectedId = null;
+let mode = 'design';
+let outTab = 'recipe';
+let saveTimer = null;
+
+/* ---------------- utils ---------------- */
+const $ = s=>document.querySelector(s);
+const uid = ()=>Math.random().toString(36).slice(2,9);
+const esc = s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function slug(s){
+  s = (s||'Quest').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,20);
+  return s || 'Quest';
+}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1900);}
+
+/* ---------------- model factories ---------------- */
+// Seeded from FactionBorderWars.js default factions.
+const DEFAULT_FACTIONS=[
+  {id:'iron',name:'Iron Legion',color:'#c0392b'},
+  {id:'verdant',name:'Verdant Pact',color:'#27ae60'},
+  {id:'azure',name:'Azure Concord',color:'#2980b9'},
+];
+function newReward(){return {gold:0,item:'',itemCount:1,xp:0,rep:[]};}
+function newBranch(){return {label:'',result:'',reward:newReward()};}
+function newStage(type='talk'){
+  return {id:uid(),type,objective:'',npc:'',dialogue:'',
+    target:{item:'',count:1,enemy:'',destination:''},
+    reward:newReward(),
+    branches:[newBranch(),newBranch()]};
+}
+function newQuestline(theme){
+  const t = THEMES[theme]||THEMES.fantasy;
+  return {id:uid(),name:pick(t.names),giver:pick(t.givers),stages:[newStage('talk')]};
+}
+function starterQuestline(theme){
+  const t = THEMES[theme]||THEMES.fantasy;
+  const giver = pick(t.givers), item = pick(t.items), npc = pick(t.npc);
+  const q = {id:uid(),name:pick(t.names),giver,stages:[]};
+  const s1 = newStage('talk'); s1.npc=giver; s1.objective=`Speak with the ${giver.toLowerCase()}.`;
+  s1.dialogue=`I could use a hand. Will you help?`;
+  const s2 = newStage('fetch'); s2.npc=giver; s2.target={item,count:3,enemy:'',destination:''};
+  s2.objective=`Bring 3 ${item} back.`; s2.reward=Object.assign(newReward(),{gold:150,xp:20,rep:[{faction:'iron',amount:5}]});
+  const s3 = newStage('talk'); s3.npc=npc; s3.objective=`Report the good news to the ${npc.toLowerCase()}.`;
+  s3.reward=Object.assign(newReward(),{item:pick(t.items),xp:40});
+  q.stages=[s1,s2,s3];
+  return q;
+}
+function defaultProject(){
+  const p={name:'',theme:'fantasy',baseSwitch:21,baseVar:21,factions:DEFAULT_FACTIONS.map(f=>Object.assign({},f)),questlines:[]};
+  p.questlines.push(starterQuestline('fantasy'));
+  const q2 = newQuestline('fantasy'); q2.name='A Fork in the Road';
+  const c = newStage('choice'); c.npc=q2.giver; c.objective='Decide how to handle the trapped merchant.';
+  c.branches=[
+    Object.assign(newBranch(),{label:'Free him',result:'He rewards you with gold.',reward:Object.assign(newReward(),{gold:200,rep:[{faction:'verdant',amount:10},{faction:'iron',amount:-5}]})}),
+    Object.assign(newBranch(),{label:'Rob him',result:'You take his purse and leave.',reward:Object.assign(newReward(),{gold:350,rep:[{faction:'iron',amount:10},{faction:'verdant',amount:-10}]})}),
+  ];
+  q2.stages=[c]; p.questlines.push(q2);
+  return p;
+}
+// Ensure older / imported projects have all current fields.
+function migrate(p){
+  if(!p.factions||!p.factions.length)p.factions=DEFAULT_FACTIONS.map(f=>Object.assign({},f));
+  (p.questlines||[]).forEach(q=>(q.stages||[]).forEach(s=>{
+    if(!s.reward)s.reward=newReward();
+    if(!Array.isArray(s.reward.rep))s.reward.rep=[];
+    if(!s.target)s.target={item:'',count:1,enemy:'',destination:''};
+    if(!Array.isArray(s.branches))s.branches=[];
+    s.branches.forEach(b=>{
+      if(b.result===undefined)b.result='';
+      if(!b.reward)b.reward=newReward();
+      if(!Array.isArray(b.reward.rep))b.reward.rep=[];
+    });
+  }));
+  return p;
+}
+
+/* ---------------- persistence ---------------- */
+const KEY='questwright:project:v1';
+async function save(){
+  $('#saveChip').innerHTML='saving…';
+  try{
+    if(window.storage&&window.storage.set){await window.storage.set(KEY,JSON.stringify(project),false);}
+  }catch(e){/* fall back silently to in-memory + export */}
+  $('#saveChip').innerHTML='saved <b>●</b>';
+}
+function queueSave(){clearTimeout(saveTimer);$('#saveChip').innerHTML='editing…';saveTimer=setTimeout(save,600);}
+async function load(){
+  try{
+    if(window.storage&&window.storage.get){
+      const r=await window.storage.get(KEY,false);
+      if(r&&r.value){project=JSON.parse(r.value);}
+    }
+  }catch(e){}
+  if(!project){project=defaultProject();}
+  migrate(project);
+  selectedId = project.questlines[0]?.id || null;
+}
+
+/* ---------------- allocation ---------------- */
+function allocate(){
+  const vars=[],switches=[],map={};
+  let vId=Number(project.baseVar)||1, sId=Number(project.baseSwitch)||1;
+  project.questlines.forEach(q=>{
+    const state=vId++;
+    vars.push({id:state,type:'v',name:`QState_${slug(q.name)}`,note:`0=inactive · 1–${q.stages.length}=active stage · ${q.stages.length+1}=done`});
+    const done=sId++;
+    switches.push({id:done,type:'s',name:`QDone_${slug(q.name)}`,note:'ON when questline completes'});
+    map[q.id]={state,done,kills:{},branches:{}};
+  });
+  project.questlines.forEach(q=>{
+    q.stages.forEach((s,i)=>{
+      if(s.type==='hunt'){
+        const kv=vId++;
+        vars.push({id:kv,type:'v',name:`Kills_${slug(q.name)}_${i+1}`,note:`counts ${s.target.enemy||'enemies'} defeated for stage ${i+1}`});
+        map[q.id].kills[s.id]=kv;
+      }
+      if(s.type==='choice'){
+        map[q.id].branches[s.id]=[];
+        (s.branches||[]).forEach((b,bi)=>{
+          const bs=sId++, L=String.fromCharCode(65+bi);
+          switches.push({id:bs,type:'s',name:`Choice_${slug(q.name)}_${i+1}${L}`,note:`ON if player chose “${b.label||('option '+L)}”`});
+          map[q.id].branches[s.id].push(bs);
+        });
+      }
+    });
+  });
+  return {vars,switches,map};
+}
+
+/* ============================================================
+   RENDER: questline rail
+   ============================================================ */
+function renderRail(){
+  const list=$('#qlist');
+  if(!project.questlines.length){list.innerHTML='<div style="color:var(--faint);font-size:12px;padding:10px 4px">No questlines yet. Add one above.</div>';return;}
+  list.innerHTML=project.questlines.map(q=>`
+    <div class="qcard ${q.id===selectedId?'sel':''}" data-q="${q.id}">
+      <div class="qtop">
+        <span class="marker">!</span>
+        <span class="qname">${esc(q.name||'(untitled)')}</span>
+      </div>
+      <div class="qmeta">${q.stages.length} page${q.stages.length!==1?'s':''} · giver: ${esc(q.giver||'—')}</div>
+      <button class="del" data-del="${q.id}" title="Delete questline">×</button>
+    </div>`).join('');
+}
+
+/* ============================================================
+   RENDER: editor
+   ============================================================ */
+function currentQ(){return project.questlines.find(q=>q.id===selectedId);}
+
+function renderEditor(){
+  const ed=$('#editor');
+  const q=currentQ();
+  if(!q){
+    ed.innerHTML=`<div class="empty"><span class="marker">!</span><div class="big">Pick a questline, or forge a new one</div>
+      <div>Each questline is a storybook. Each page below becomes a checkpoint you place on an NPC.</div></div>`;
+    return;
+  }
+  ed.innerHTML=`
+    <div class="q-head">
+      <div class="q-title-row">
+        <div class="field titlefield" style="flex:2"><label>Questline name</label>
+          <input class="inp" id="qName" value="${esc(q.name)}" placeholder="The Lost Locket"></div>
+        <div class="field" style="flex:1"><label>Quest giver (NPC)</label>
+          <input class="inp" id="qGiver" value="${esc(q.giver)}" placeholder="Village Elder"></div>
+      </div>
+    </div>
+    <div class="stages-h">
+      <div class="panel-h">Pages · checkpoints</div>
+      <div class="pagecount">${q.stages.length} page${q.stages.length!==1?'s':''}</div>
+    </div>
+    <div id="stageList">${q.stages.map((s,i)=>stageCardHTML(s,i,q)).join('')}</div>
+    ${addStageHTML()}
+  `;
+}
+
+function stageCardHTML(s,i,q){
+  const t=TYPES[s.type];
+  const preview = esc(s.objective|| (s.npc? (t.label+' · '+s.npc) : t.label));
+  return `<div class="stage-card" data-stage="${s.id}" style="--type:${t.color}">
+    <div class="sc-head">
+      <div class="sc-num">${i+1}</div>
+      <span class="sc-type-pill">${t.label}</span>
+      <span class="sc-obj-preview">${preview}</span>
+      <div class="sc-tools">
+        <button class="icbtn" data-move="up" data-s="${s.id}" title="Move up" ${i===0?'disabled style="opacity:.3"':''}>▲</button>
+        <button class="icbtn" data-move="down" data-s="${s.id}" title="Move down" ${i===q.stages.length-1?'disabled style="opacity:.3"':''}>▼</button>
+        <button class="icbtn del" data-delstage="${s.id}" title="Delete page">×</button>
+      </div>
+    </div>
+    <div class="sc-body">${stageFieldsHTML(s)}</div>
+  </div>`;
+}
+
+function stageFieldsHTML(s){
+  const t=TYPES[s.type];
+  let typeSel=`<div class="f"><label>Page type</label>
+    <select class="inp" data-f="type" data-s="${s.id}">
+      ${Object.entries(TYPES).map(([k,v])=>`<option value="${k}" ${k===s.type?'selected':''}>${v.label}</option>`).join('')}
+    </select></div>`;
+
+  let specific='';
+  if(s.type==='fetch'||s.type==='hunt'){
+    const isHunt=s.type==='hunt';
+    specific=`<div class="grid3">
+      <div class="f"><label>${isHunt?'Enemy to defeat':'Item to collect'}</label>
+        <input class="inp" data-f="${isHunt?'enemy':'item'}" data-s="${s.id}" value="${esc(isHunt?s.target.enemy:s.target.item)}" placeholder="${isHunt?'dire wolf':'healing herb'}"></div>
+      <div class="f"><label>Count</label>
+        <input class="inp" type="number" min="1" data-f="count" data-s="${s.id}" value="${s.target.count||1}"></div>
+      <div class="f"><label>${t.npcLabel}</label>
+        <input class="inp" data-f="npc" data-s="${s.id}" value="${esc(s.npc)}" placeholder="Village Elder"></div>
+    </div>`;
+  } else if(s.type==='deliver'){
+    specific=`<div class="grid2">
+      <div class="f"><label>Item to deliver</label>
+        <input class="inp" data-f="item" data-s="${s.id}" value="${esc(s.target.item)}" placeholder="sealed letter"></div>
+      <div class="f"><label>${t.npcLabel}</label>
+        <input class="inp" data-f="npc" data-s="${s.id}" value="${esc(s.npc)}" placeholder="Court Mage"></div>
+    </div>`;
+  } else if(s.type==='choice'){
+    specific=`<div class="f"><label>${t.npcLabel}</label>
+        <input class="inp" data-f="npc" data-s="${s.id}" value="${esc(s.npc)}" placeholder="Village Elder"></div>
+      <div class="f"><label>The choice</label><div class="branches">${
+        (s.branches||[]).map((b,bi)=>branchHTML(s.id,b,bi)).join('')
+      }</div>
+      ${(s.branches||[]).length<3?`<button class="btn ghost sm" data-addbranch="${s.id}" style="justify-self:start;margin-top:2px">+ Add option</button>`:''}
+      </div>`;
+  } else { // talk / investigate
+    specific=`<div class="f"><label>${t.npcLabel}</label>
+      <input class="inp" data-f="npc" data-s="${s.id}" value="${esc(s.npc)}" placeholder="${s.type==='investigate'?'old well':'Village Elder'}"></div>`;
+  }
+
+  const dialogue = s.type==='choice' ? '' :
+    `<div class="f"><label>NPC line (optional)</label>
+      <textarea class="inp" data-f="dialogue" data-s="${s.id}" placeholder="What the NPC says at this step…">${esc(s.dialogue)}</textarea></div>`;
+
+  const reward = s.type==='choice' ? '' : rewardHTML(s.reward,s.id,null);
+
+  return `<div class="grid2">${typeSel}
+      <div class="f"><label>Objective (quest-log text)</label>
+        <input class="inp" data-f="objective" data-s="${s.id}" value="${esc(s.objective)}" placeholder="Bring 3 healing herbs to the Elder"></div>
+    </div>
+    ${specific}
+    ${dialogue}
+    ${reward}`;
+}
+
+function branchHTML(sid,b,bi){
+  const L=String.fromCharCode(65+bi);
+  return `<div class="branch">
+    <div class="bletter">${L}</div>
+    <div class="branch-fields">
+      ${bi>=2?`<button class="rm" data-rmbranch="${sid}" data-bi="${bi}" title="Remove">×</button>`:''}
+      <input class="inp" data-branch="label" data-s="${sid}" data-bi="${bi}" value="${esc(b.label)}" placeholder="Option ${L} — e.g. Free the merchant">
+      <input class="inp" data-branch="result" data-s="${sid}" data-bi="${bi}" value="${esc(b.result)}" placeholder="What happens if chosen (shown as text)">
+      ${rewardHTML(b.reward,sid,bi)}
+    </div>
+  </div>`;
+}
+
+function repEditorHTML(reward,s,bi){
+  const biAttr = (bi==null?'':` data-bi="${bi}"`);
+  const facs = project.factions||[];
+  const rows=(reward.rep||[]).map((e,ri)=>`
+    <div class="rep-row">
+      <select class="inp" data-rep="faction" data-s="${s}"${biAttr} data-ri="${ri}">
+        <option value="">— faction —</option>
+        ${facs.map(f=>`<option value="${esc(f.id)}" ${f.id===e.faction?'selected':''}>${esc(f.name)}</option>`).join('')}
+      </select>
+      <input class="inp mini" type="number" data-rep="amount" data-s="${s}"${biAttr} data-ri="${ri}" value="${e.amount||0}" title="+ gain / − lose">
+      <button class="rep-rm" data-rmrep="${s}"${biAttr} data-ri="${ri}" title="Remove">×</button>
+    </div>`).join('');
+  return `<div class="rep-block">
+    <div class="rep-head">Reputation</div>
+    ${rows}
+    <button class="btn ghost sm rep-add" data-addrep="${s}"${biAttr}>+ faction reputation</button>
+  </div>`;
+}
+
+function rewardHTML(reward,s,bi){
+  const r=reward||{};
+  const biAttr = (bi==null?'':` data-bi="${bi}"`);
+  return `<div class="reward-row">
+    <span class="reward-lbl">Reward on completing this ${bi==null?'page':'option'}</span>
+    <div class="f"><label>Gold</label><input class="inp" type="number" min="0" data-rw="gold" data-s="${s}"${biAttr} value="${r.gold||0}"></div>
+    <div class="f"><label>Item</label><input class="inp" data-rw="item" data-s="${s}"${biAttr} value="${esc(r.item)}" placeholder="(none)"></div>
+    <div class="f"><label>×</label><input class="inp" type="number" min="1" data-rw="itemCount" data-s="${s}"${biAttr} value="${r.itemCount||1}"></div>
+    <div class="f"><label>XP</label><input class="inp" type="number" min="0" data-rw="xp" data-s="${s}"${biAttr} value="${r.xp||0}"></div>
+    <div class="f" style="grid-column:1/-1">${repEditorHTML(r,s,bi)}</div>
+  </div>`;
+}
+
+function addStageHTML(){
+  return `<div class="addstage">
+    <span class="lbl">Add a page</span>
+    ${Object.entries(TYPES).map(([k,v])=>`<button class="tbtn" data-add="${k}" style="--c:${v.color}"><span class="dot"></span>${v.label}</button>`).join('')}
+  </div>`;
+}
+
+/* ============================================================
+   EDITOR EVENTS  (update model without full re-render on typing)
+   ============================================================ */
+function bindEditor(){
+  const ed=$('#editor');
+  ed.addEventListener('input',e=>{
+    const q=currentQ(); if(!q)return;
+    const el=e.target;
+    if(el.id==='qName'){q.name=el.value;updateRailMeta();queueSave();return;}
+    if(el.id==='qGiver'){q.giver=el.value;updateRailMeta();queueSave();return;}
+    const sid=el.dataset.s;
+    if(!sid)return;
+    const s=q.stages.find(x=>x.id===sid); if(!s)return;
+    if(el.dataset.branch!==undefined){
+      const bi=+el.dataset.bi; s.branches[bi][el.dataset.branch]=el.value; queueSave(); return;
+    }
+    const rewOf = ()=> el.dataset.bi!==undefined ? s.branches[+el.dataset.bi].reward : s.reward;
+    if(el.dataset.rw!==undefined){
+      const rew=rewOf();
+      if(el.dataset.rw==='gold')rew.gold=Math.max(0,+el.value||0);
+      else if(el.dataset.rw==='item')rew.item=el.value;
+      else if(el.dataset.rw==='itemCount')rew.itemCount=Math.max(1,+el.value||1);
+      else if(el.dataset.rw==='xp')rew.xp=Math.max(0,+el.value||0);
+      queueSave(); return;
+    }
+    if(el.dataset.rep==='amount'){
+      rewOf().rep[+el.dataset.ri].amount=+el.value||0; queueSave(); return;
+    }
+    const f=el.dataset.f;
+    switch(f){
+      case 'objective': s.objective=el.value; updatePreview(sid,s); break;
+      case 'npc': s.npc=el.value; break;
+      case 'dialogue': s.dialogue=el.value; break;
+      case 'item': s.target.item=el.value; break;
+      case 'enemy': s.target.enemy=el.value; break;
+      case 'count': s.target.count=Math.max(1,+el.value||1); break;
+      case 'destination': s.target.destination=el.value; break;
+    }
+    queueSave();
+  });
+  ed.addEventListener('change',e=>{
+    const q=currentQ(); if(!q)return;
+    const el=e.target;
+    if(el.dataset.f==='type'){
+      const s=q.stages.find(x=>x.id===el.dataset.s);
+      if(s){s.type=e.target.value; renderEditor(); queueSave();}
+    } else if(el.dataset.rep==='faction'){
+      const s=q.stages.find(x=>x.id===el.dataset.s); if(!s)return;
+      const rew = el.dataset.bi!==undefined ? s.branches[+el.dataset.bi].reward : s.reward;
+      rew.rep[+el.dataset.ri].faction=el.value; queueSave();
+    }
+  });
+  ed.addEventListener('click',e=>{
+    const q=currentQ(); if(!q)return;
+    const add=e.target.closest('[data-add]');
+    if(add){q.stages.push(newStage(add.dataset.add));renderEditor();updateRailMeta();queueSave();
+      ed.scrollTop=ed.scrollHeight;return;}
+    const del=e.target.closest('[data-delstage]');
+    if(del){q.stages=q.stages.filter(s=>s.id!==del.dataset.delstage);renderEditor();updateRailMeta();queueSave();return;}
+    const mv=e.target.closest('[data-move]');
+    if(mv){const id=mv.dataset.s;const i=q.stages.findIndex(s=>s.id===id);
+      const j=mv.dataset.move==='up'?i-1:i+1;
+      if(j>=0&&j<q.stages.length){[q.stages[i],q.stages[j]]=[q.stages[j],q.stages[i]];renderEditor();queueSave();}return;}
+    const ab=e.target.closest('[data-addbranch]');
+    if(ab){const s=q.stages.find(x=>x.id===ab.dataset.addbranch);
+      if(s.branches.length<3){s.branches.push(newBranch());renderEditor();queueSave();}return;}
+    const rb=e.target.closest('[data-rmbranch]');
+    if(rb){const s=q.stages.find(x=>x.id===rb.dataset.rmbranch);
+      s.branches.splice(+rb.dataset.bi,1);renderEditor();queueSave();return;}
+    const arp=e.target.closest('[data-addrep]');
+    if(arp){const s=q.stages.find(x=>x.id===arp.dataset.addrep); if(!s)return;
+      const rew = arp.dataset.bi!==undefined ? s.branches[+arp.dataset.bi].reward : s.reward;
+      rew.rep.push({faction:(project.factions[0]&&project.factions[0].id)||'',amount:10});
+      renderEditor();queueSave();return;}
+    const rrp=e.target.closest('[data-rmrep]');
+    if(rrp){const s=q.stages.find(x=>x.id===rrp.dataset.rmrep); if(!s)return;
+      const rew = rrp.dataset.bi!==undefined ? s.branches[+rrp.dataset.bi].reward : s.reward;
+      rew.rep.splice(+rrp.dataset.ri,1);renderEditor();queueSave();return;}
+  });
+}
+function renderFactions(){
+  const p=$('#facPanel');
+  const facs=project.factions||[];
+  p.innerHTML=`<h2 style="color:var(--violet)">◆ Factions</h2>
+    <div class="fac-note">Reputation rewards draw from this list. Match the <b>id</b> to your FactionBorderWars faction ids (e.g. iron, verdant).</div>
+    ${facs.map((f,i)=>`<div class="fac-row">
+      <span class="sw" style="background:${esc(f.color||'#888')}"></span>
+      <input class="inp fid" data-fac="id" data-i="${i}" value="${esc(f.id)}" placeholder="iron">
+      <input class="inp fname" data-fac="name" data-i="${i}" value="${esc(f.name)}" placeholder="Iron Legion">
+      <button class="frm" data-facrm="${i}" title="Remove">×</button>
+    </div>`).join('')}
+    <button class="btn ghost sm" id="addFac" style="margin-top:6px">+ Faction</button>`;
+}
+function bindFactions(){
+  const p=$('#facPanel');
+  p.addEventListener('input',e=>{
+    const el=e.target; if(el.dataset.fac===undefined)return;
+    const f=project.factions[+el.dataset.i]; if(!f)return;
+    f[el.dataset.fac]=el.value; queueSave();
+  });
+  p.addEventListener('click',e=>{
+    if(e.target.id==='addFac'){project.factions.push({id:'',name:'',color:'#9b8cf0'});renderFactions();queueSave();return;}
+    const rm=e.target.closest('[data-facrm]');
+    if(rm){project.factions.splice(+rm.dataset.facrm,1);renderFactions();renderEditor();queueSave();}
+  });
+}
+function updatePreview(sid,s){
+  const card=document.querySelector(`.stage-card[data-stage="${sid}"] .sc-obj-preview`);
+  if(card)card.textContent=s.objective||TYPES[s.type].label;
+}
+function updateRailMeta(){renderRail();}
+
+/* ============================================================
+   OUTPUT: build recipe grouped by NPC
+   ============================================================ */
+function buildRecipe(){
+  const A=allocate();
+  const byNpc={}; // name -> {isGiver, pages:[]}
+  const push=(npc,page,giver=false)=>{
+    const key=npc&&npc.trim()?npc.trim():'(unnamed NPC — set one)';
+    if(!byNpc[key])byNpc[key]={pages:[],giver:false};
+    if(giver)byNpc[key].giver=true;
+    byNpc[key].pages.push(page);
+  };
+
+  project.questlines.forEach(q=>{
+    const m=A.map[q.id];
+    const V=`Variable #${m.state} [QState_${slug(q.name)}]`;
+    const last=q.stages.length;
+
+    // Offer page on giver
+    push(q.giver,{
+      quest:q.name, type:'talk', badge:'OFFER',
+      cond:`<b>${V}</b> = 0`, title:`Offer “${esc(q.name)}”`,
+      cmds:[
+        {t:'text',v:q.stages[0]?.dialogue || 'Would you help me with something?'},
+        {t:'choices',opts:['Accept','Decline'], accept:[
+          {t:'cmd',v:`Control Variables: ${V} = 1`},
+          {t:'text',v:'Thank you! Come back when it’s done.'}
+        ], decline:[{t:'text',v:'…Perhaps another time.'}]}
+      ]
+    },true);
+
+    q.stages.forEach((s,i)=>{
+      const stageNo=i+1, next=stageNo+1;
+      const setNext = stageNo===last
+        ? [{t:'cmd',v:`Control Variables: ${V} = ${last+1}   (quest complete)`},
+           {t:'cmd',v:`Control Switch: #${m.done} [QDone_${slug(q.name)}] = ON`}]
+        : [{t:'cmd',v:`Control Variables: ${V} = ${next}`}];
+      const rewardCmds = rewardToCmds(s.reward);
+
+      if(s.type==='talk'||s.type==='investigate'){
+        push(s.npc||q.giver,{
+          quest:q.name,type:s.type,badge:`STAGE ${stageNo}`,
+          cond:`<b>${V}</b> = ${stageNo}`,
+          title:s.objective|| (s.type==='investigate'?'Investigate':'Talk'),
+          cmds:[
+            ...(s.dialogue?[{t:'text',v:s.dialogue}]:[{t:'text',v:'(dialogue for this step)'}]),
+            ...rewardCmds, ...setNext,
+            ...(stageNo===last?[{t:'text',v:'Quest complete!'}]:[])
+          ]
+        });
+      }
+      else if(s.type==='fetch'){
+        const item=s.target.item||'the item', n=s.target.count||1;
+        push(s.npc||q.giver,{
+          quest:q.name,type:'fetch',badge:`STAGE ${stageNo}`,
+          cond:`<b>${V}</b> = ${stageNo}`,
+          title:s.objective||`Turn in ${n}× ${item}`,
+          cmds:[
+            {t:'branch',v:`Conditional Branch: Party has ${n} or more “${item}”`, then:[
+              ...(s.dialogue?[{t:'text',v:s.dialogue}]:[]),
+              {t:'cmd',v:`Change Items: “${item}” − ${n}`},
+              ...rewardCmds, ...setNext,
+              ...(stageNo===last?[{t:'text',v:'Quest complete!'}]:[])
+            ], else:[{t:'text',v:`Still need ${n} “${item}”. Come back when you have them.`}]}
+          ]
+        });
+      }
+      else if(s.type==='deliver'){
+        const item=s.target.item||'the item';
+        push(s.npc||q.giver,{
+          quest:q.name,type:'deliver',badge:`STAGE ${stageNo}`,
+          cond:`<b>${V}</b> = ${stageNo}`,
+          title:s.objective||`Deliver ${item}`,
+          cmds:[
+            {t:'text',v:s.dialogue||`Ah, ${item} — just what I needed.`},
+            ...(item?[{t:'cmd',v:`Change Items: “${item}” − 1  (optional, if carried)`}]:[]),
+            ...rewardCmds, ...setNext,
+            ...(stageNo===last?[{t:'text',v:'Quest complete!'}]:[])
+          ]
+        });
+      }
+      else if(s.type==='hunt'){
+        const enemy=s.target.enemy||'enemies', n=s.target.count||1;
+        const kv=m.kills[s.id];
+        push(s.npc||q.giver,{
+          quest:q.name,type:'hunt',badge:`STAGE ${stageNo}`,
+          cond:`<b>${V}</b> = ${stageNo}`,
+          title:s.objective||`Defeat ${n}× ${enemy}, then report`,
+          troop:{enemy,kv,n},
+          cmds:[
+            {t:'branch',v:`Conditional Branch: Variable #${kv} [Kills_${slug(q.name)}_${stageNo}] ≥ ${n}`, then:[
+              ...(s.dialogue?[{t:'text',v:s.dialogue}]:[{t:'text',v:`You’ve dealt with the ${enemy}. Well done.`}]),
+              ...rewardCmds, ...setNext,
+              ...(stageNo===last?[{t:'text',v:'Quest complete!'}]:[])
+            ], else:[{t:'text',v:`Defeat ${n} ${enemy} first. (${n} needed)`}]}
+          ]
+        });
+      }
+      else if(s.type==='choice'){
+        const branchSwitches=m.branches[s.id]||[];
+        push(s.npc||q.giver,{
+          quest:q.name,type:'choice',badge:`STAGE ${stageNo}`,
+          cond:`<b>${V}</b> = ${stageNo}`,
+          title:s.objective||'A choice',
+          cmds:[
+            {t:'text',v:s.objective||'What will you do?'},
+            {t:'choicesMulti',opts:(s.branches||[]).map((b,bi)=>({
+              label:b.label||`Option ${String.fromCharCode(65+bi)}`,
+              body:[
+                {t:'cmd',v:`Control Switch: #${branchSwitches[bi]} [Choice_${slug(q.name)}_${stageNo}${String.fromCharCode(65+bi)}] = ON`},
+                ...(b.result?[{t:'text',v:b.result}]:[]),
+                ...rewardToCmds(b.reward),
+                ...setNext,
+                ...(stageNo===last?[{t:'text',v:'Quest complete!'}]:[])
+              ]
+            }))}
+          ]
+        });
+      }
+    });
+  });
+  return {byNpc,A};
+}
+
+function rewardToCmds(r){
+  if(!r)return [];
+  const out=[];
+  if(r.gold>0)out.push({t:'cmd',v:`Change Gold: + ${r.gold}`});
+  if(r.item&&r.item.trim())out.push({t:'cmd',v:`Change Items: “${r.item.trim()}” + ${r.itemCount||1}`});
+  if(r.xp>0)out.push({t:'cmd',v:`Change EXP: + ${r.xp} (whole party)`});
+  (r.rep||[]).forEach(e=>{ if(e.faction&&e.amount)
+    out.push({t:'cmd',v:`Script: Questwright.addRep('${e.faction}', ${e.amount})   (needs QuestwrightCore.js)`}); });
+  return out;
+}
+
+/* ---- render recipe ---- */
+function cmdListHTML(cmds){
+  return `<ol class="cmds">${cmds.map(cmdHTML).join('')}</ol>`;
+}
+function cmdHTML(c){
+  if(c.t==='text')return `<li><span class="cmd">◈ Show Text:</span> <span class="say">“${esc(c.v)}”</span></li>`;
+  if(c.t==='cmd')return `<li><span class="cmd">▸</span> ${esc(c.v)}</li>`;
+  if(c.t==='branch')return `<li><span class="cmd">⎇ ${esc(c.v)}</span>
+      <ul class="sub"><li style="color:var(--muted);font-size:11px">— then —</li>${c.then.map(cmdHTML).join('')}
+      <li style="color:var(--muted);font-size:11px;margin-top:4px">— else —</li>${(c.else||[]).map(cmdHTML).join('')}</ul></li>`;
+  if(c.t==='choices')return `<li><span class="cmd">▤ Show Choices:</span> ${c.opts.map(o=>`“${esc(o)}”`).join(' · ')}
+      <ul class="sub"><li style="color:var(--muted);font-size:11px">When Accept:</li>${c.accept.map(cmdHTML).join('')}
+      <li style="color:var(--muted);font-size:11px;margin-top:4px">When Decline:</li>${c.decline.map(cmdHTML).join('')}</ul></li>`;
+  if(c.t==='choicesMulti')return `<li><span class="cmd">▤ Show Choices:</span> ${c.opts.map(o=>`“${esc(o.label)}”`).join(' · ')}
+      ${c.opts.map(o=>`<ul class="sub"><li style="color:var(--violet);font-size:11px">When “${esc(o.label)}”:</li>${o.body.map(cmdHTML).join('')}</ul>`).join('')}</li>`;
+  return '';
+}
+
+function renderRecipe(){
+  if(!project.questlines.length)return `<div class="empty"><div class="big">Nothing to build yet</div><div>Add a questline in Design mode first.</div></div>`;
+  const {byNpc}=buildRecipe();
+  const legend=`<div class="legend">
+    <b>How to read this.</b> Open each NPC once in the RPG Maker MZ editor and add the event <b>pages</b> listed under it, top to bottom. For each page: set its <b>Page Condition</b> to the switch/variable shown, set the trigger to <b>Action Button</b>, then add the listed event commands.
+    <div class="row"><span class="k">!</span><span>The giver’s <b>Offer</b> page starts the quest (sets its state variable to 1).</span></div>
+    <div class="row"><span class="k">?</span><span>Later pages advance the state variable, hand out rewards, and — on the last page — flip the quest’s <b>Done</b> switch.</span></div>
+  </div>`;
+  const blocks=Object.entries(byNpc).map(([npc,data],idx)=>{
+    return `<div class="npc-block ${idx<2?'open':''}">
+      <div class="npc-head" data-toggle>
+        <span class="qmark">${data.giver?'!':'?'}</span>
+        <span class="who">${esc(npc)}</span>
+        <span class="cnt">${data.pages.length} page${data.pages.length!==1?'s':''}</span>
+        <span class="chev">▶</span>
+      </div>
+      <div class="npc-body">
+        ${data.pages.map(p=>pageSpecHTML(p)).join('')}
+      </div>
+    </div>`;
+  }).join('');
+  return legend+blocks;
+}
+
+function pageSpecHTML(p){
+  const t=TYPES[p.type];
+  let troopNote='';
+  if(p.troop){
+    troopNote=`<div class="note-tip warn"><b>One troop edit needed:</b> in the Troops tab, open a troop containing <b>${esc(p.troop.enemy)}</b>, add a page with span “Battle End”, and set <b>Control Variables: #${p.troop.kv} += 1</b>. That counts each ${esc(p.troop.enemy)} defeated toward this stage. (Optional: reset the variable to 0 when the stage starts.)</div>`;
+  }
+  return `<div class="page-spec" style="--type:${t.color}">
+    <div class="ps-head">
+      <span class="ps-badge">${p.badge}</span>
+      <span class="ps-title">${esc(p.title)}</span>
+      <span class="ps-cond">Page condition: ${p.cond}</span>
+    </div>
+    <div class="ps-body">
+      <div class="lbl">Event commands</div>
+      ${cmdListHTML(p.cmds)}
+      ${troopNote}
+    </div>
+  </div>`;
+}
+
+/* ---- registry ---- */
+function renderRegistry(){
+  const {vars,switches}=allocate();
+  if(!vars.length)return `<div class="empty"><div class="big">No allocations yet</div><div>Add a questline to reserve switches and variables.</div></div>`;
+  const legend=`<div class="legend"><b>Name these in your Database.</b> Open <b>Tools → Database → Switches / Variables</b> and give each ID below the listed name (matching names keeps the build recipe readable). IDs start from your chosen bases (Switch ${project.baseSwitch}, Var ${project.baseVar}); nudge the bases in the top bar if these clash with switches you already use.</div>`;
+  const vRows=vars.map(v=>`<tr><td class="reg-id">Var #${v.id}</td><td class="tag-v">${esc(v.name)}</td><td style="color:var(--muted)">${esc(v.note)}</td></tr>`).join('');
+  const sRows=switches.map(s=>`<tr><td class="reg-id">Sw #${s.id}</td><td class="tag-s">${esc(s.name)}</td><td style="color:var(--muted)">${esc(s.note)}</td></tr>`).join('');
+  return legend+`
+    <div class="panel-h" style="margin-top:6px">Variables</div>
+    <table class="reg"><thead><tr><th>ID</th><th>Name</th><th>Meaning</th></tr></thead><tbody>${vRows}</tbody></table>
+    <div class="panel-h" style="margin-top:22px">Switches</div>
+    <table class="reg"><thead><tr><th>ID</th><th>Name</th><th>Meaning</th></tr></thead><tbody>${sRows}</tbody></table>
+    <div style="margin-top:16px"><button class="btn" id="copyReg">Copy registry as text</button></div>`;
+}
+
+/* ---- flow map ---- */
+function renderFlow(){
+  if(!project.questlines.length)return `<div class="empty"><div class="big">No flow to map yet</div></div>`;
+  return `<div class="flow">${project.questlines.map(q=>{
+    const steps=q.stages.map((s,i)=>{
+      const t=TYPES[s.type];
+      if(s.type==='choice'){
+        const forks=(s.branches||[]).map(b=>`<div class="fk">▸ ${esc(b.label||'option')}</div>`).join('');
+        return `<div class="flow-fork" style="--type:${t.color}"><div class="flow-node" style="--type:${t.color}"><span class="n">${i+1}</span>${t.label}</div>${forks}</div>`;
+      }
+      const detail = s.type==='fetch'?`${s.target.count}× ${s.target.item||'item'}`:
+                     s.type==='hunt'?`${s.target.count}× ${s.target.enemy||'enemy'}`:
+                     s.npc||t.label;
+      return `<div class="flow-node" style="--type:${t.color}"><span class="n">${i+1}</span>${t.label}: ${esc(detail)}</div>`;
+    }).join('<span class="flow-arrow">→</span>');
+    return `<div class="flow-line">
+      <div class="fl-name"><span class="marker" style="color:var(--gold)">!</span>${esc(q.name)} <span style="font-family:var(--mono);font-size:10px;color:var(--faint);font-weight:400">· giver ${esc(q.giver||'—')}</span></div>
+      <div class="flow-steps"><div class="flow-node" style="--type:#8890a8"><span class="n">0</span>Offer @ ${esc(q.giver||'giver')}</div><span class="flow-arrow">→</span>${steps}<span class="flow-arrow">→</span><div class="flow-node" style="--type:#6bc7a6">✓ Done</div></div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+/* ---- one-click plugin ---- */
+function npcTags(){
+  const set=new Set();
+  (project.questlines||[]).forEach(q=>{
+    if(q.giver&&q.giver.trim())set.add(q.giver.trim());
+    (q.stages||[]).forEach(s=>{ if(s.npc&&s.npc.trim())set.add(s.npc.trim()); });
+  });
+  return [...set];
+}
+function questDataJSON(){
+  // The plugin consumes the same schema the editor uses (factions + questlines).
+  return JSON.stringify({factions:project.factions,questlines:project.questlines});
+}
+function renderPlugin(){
+  if(!project.questlines.length)return `<div class="empty"><div class="big">Nothing to import yet</div><div>Add a questline first.</div></div>`;
+  const tags=npcTags();
+  const usesRep = project.questlines.some(q=>q.stages.some(s=>
+    (s.reward&&s.reward.rep&&s.reward.rep.length) || (s.branches||[]).some(b=>b.reward&&b.reward.rep&&b.reward.rep.length)));
+  return `<div class="legend">
+    <b>True one-click import.</b> With the companion plugin <b>QuestwrightCore.js</b> installed, you paste the data below once and every questline exists in your game — no switches, no variables, no per-page eventing. Each NPC needs just <b>one</b> plugin command.
+    <div class="row"><span class="k">1</span><span>Drop <b>QuestwrightCore.js</b> (and <b>FactionBorderWars.js</b> above it, for reputation) into <b>js/plugins/</b> and enable both in the Plugin Manager.</span></div>
+    <div class="row"><span class="k">2</span><span>Open QuestwrightCore’s parameters, paste the JSON below into <b>Quest Data</b>, and save.</span></div>
+    <div class="row"><span class="k">3</span><span>On each NPC, add the single plugin command listed further down and set the event trigger to <b>Action Button</b>.</span></div>
+    ${usesRep?`<div class="row"><span class="k">◆</span><span>To let reputation affect the war, turn on <b>Mirror Reputation Into War</b> in QuestwrightCore’s parameters.</span></div>`:''}
+  </div>
+
+  <div class="panel-h">1 · Quest data (paste into the plugin’s “Quest Data” parameter)</div>
+  <div class="exp-actions"><button class="btn gold" id="copyQData">Copy quest data</button><button class="btn" id="dlQData">⤓ Download quests.json</button></div>
+  <textarea class="exp-area" id="qdataArea" spellcheck="false" style="min-height:150px"></textarea>
+
+  <div class="panel-h" style="margin-top:22px">2 · One command per NPC</div>
+  <div class="legend" style="margin-bottom:12px">For every NPC below, add exactly this on its event page:
+    <div style="font-family:var(--mono);font-size:12px;color:var(--gold);margin-top:6px">Plugin Command → QuestwrightCore → Interact → NPC tag: <i>«name»</i></div></div>
+  <table class="reg"><thead><tr><th>NPC tag (type exactly)</th><th>Command</th></tr></thead><tbody>
+    ${tags.map(t=>`<tr><td class="tag-s">${esc(t)}</td><td style="color:var(--muted)">Interact · npc = “${esc(t)}”</td></tr>`).join('')}
+  </tbody></table>
+  <div class="note-tip"><b>${tags.length}</b> NPC${tags.length!==1?'s':''} to wire. Optional: add a menu command or event that calls <b>QuestwrightCore → Open Quest Log</b> for an in-game journal.</div>`;
+}
+
+/* ---- export/import ---- */
+function renderExport(){
+  return `<div class="legend"><b>Your work, portable.</b> Everything lives in the JSON below. <b>Download</b> it as a backup or to move between machines, or paste a saved file into the box and <b>Load</b> it. You can also copy the full build recipe as plain text to keep beside the editor.</div>
+  <div class="exp-actions">
+    <button class="btn gold" id="dlJson">⤓ Download project JSON</button>
+    <button class="btn" id="copyJson">Copy JSON</button>
+    <button class="btn" id="loadJson">Load pasted JSON</button>
+    <button class="btn" id="copyRecipe">Copy full build recipe (text)</button>
+    <button class="btn danger ghost" id="resetProj">Reset to sample project</button>
+  </div>
+  <textarea class="exp-area" id="jsonArea" spellcheck="false"></textarea>`;
+}
+
+function recipeAsText(){
+  const {byNpc}=buildRecipe();
+  const {vars,switches}=allocate();
+  let out=`QUESTWRIGHT BUILD SHEET — ${project.name||'Untitled Project'}\n`;
+  out+=`Theme: ${project.theme} · Switch base ${project.baseSwitch} · Var base ${project.baseVar}\n`;
+  out+=`${'='.repeat(60)}\n\nSWITCH / VARIABLE REGISTRY (name these in the Database)\n`;
+  vars.forEach(v=>out+=`  Var #${v.id}  ${v.name}  — ${v.note}\n`);
+  switches.forEach(s=>out+=`  Sw  #${s.id}  ${s.name}  — ${s.note}\n`);
+  out+=`\n${'='.repeat(60)}\n\nBUILD BY NPC\n`;
+  const flat=c=>{
+    let l='';
+    const walk=(arr,ind)=>arr.forEach(c=>{
+      const pad='   '.repeat(ind);
+      if(c.t==='text')l+=`${pad}• Show Text: "${c.v}"\n`;
+      else if(c.t==='cmd')l+=`${pad}> ${c.v}\n`;
+      else if(c.t==='branch'){l+=`${pad}IF ${c.v}\n`;walk(c.then,ind+1);l+=`${pad}ELSE\n`;walk(c.else||[],ind+1);}
+      else if(c.t==='choices'){l+=`${pad}Show Choices: ${c.opts.map(o=>'"'+o+'"').join(', ')}\n${pad} When Accept:\n`;walk(c.accept,ind+2);l+=`${pad} When Decline:\n`;walk(c.decline,ind+2);}
+      else if(c.t==='choicesMulti'){l+=`${pad}Show Choices: ${c.opts.map(o=>'"'+o.label+'"').join(', ')}\n`;c.opts.forEach(o=>{l+=`${pad} When "${o.label}":\n`;walk(o.body,ind+2);});}
+    });
+    walk([c],0);return l;
+  };
+  Object.entries(byNpc).forEach(([npc,data])=>{
+    out+=`\n${'-'.repeat(60)}\n${data.giver?'! ':'? '}${npc}  (${data.pages.length} page${data.pages.length!==1?'s':''})\n${'-'.repeat(60)}\n`;
+    data.pages.forEach(p=>{
+      const cond=p.cond.replace(/<\/?b>/g,'');
+      out+=`\n  [${p.badge}] ${p.title}\n  Page condition: ${cond}\n  Trigger: Action Button\n  Commands:\n`;
+      p.cmds.forEach(c=>out+=flat(c).split('\n').filter(Boolean).map(x=>'    '+x).join('\n')+'\n');
+      if(p.troop)out+=`    (!) TROOP EDIT: on ${p.troop.enemy} battle-end, Control Variables #${p.troop.kv} += 1\n`;
+    });
+  });
+  return out;
+}
+
+/* ============================================================
+   OUTPUT render + events
+   ============================================================ */
+function renderOutput(){
+  const body=$('#outBody');
+  if(outTab==='recipe')body.innerHTML=renderRecipe();
+  else if(outTab==='plugin')body.innerHTML=renderPlugin();
+  else if(outTab==='registry')body.innerHTML=renderRegistry();
+  else if(outTab==='flow')body.innerHTML=renderFlow();
+  else body.innerHTML=renderExport();
+
+  if(outTab==='export'){
+    $('#jsonArea').value=JSON.stringify(project,null,2);
+  }
+  if(outTab==='plugin'){
+    const a=$('#qdataArea'); if(a)a.value=questDataJSON();
+  }
+  document.querySelectorAll('.out-tabs button').forEach(b=>b.classList.toggle('active',b.dataset.otab===outTab));
+}
+
+$('#outBody').addEventListener('click',e=>{
+  const tg=e.target.closest('[data-toggle]');
+  if(tg){tg.closest('.npc-block').classList.toggle('open');return;}
+  if(e.target.id==='copyReg'){
+    const {vars,switches}=allocate();
+    let t='VARIABLES\n'+vars.map(v=>`#${v.id}\t${v.name}\t${v.note}`).join('\n')+'\n\nSWITCHES\n'+switches.map(s=>`#${s.id}\t${s.name}\t${s.note}`).join('\n');
+    copy(t,'Registry copied');return;
+  }
+  if(e.target.id==='copyQData'){copy(questDataJSON(),'Quest data copied — paste into the plugin');return;}
+  if(e.target.id==='dlQData'){
+    const blob=new Blob([questDataJSON()],{type:'application/json'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');
+    a.href=url;a.download='quests.json';a.click();URL.revokeObjectURL(url);toast('Downloaded');return;}
+  if(e.target.id==='dlJson'){downloadJSON();return;}
+  if(e.target.id==='copyJson'){copy(JSON.stringify(project,null,2),'Project JSON copied');return;}
+  if(e.target.id==='copyRecipe'){copy(recipeAsText(),'Build sheet copied');return;}
+  if(e.target.id==='loadJson'){importJSON();return;}
+  if(e.target.id==='resetProj'){
+    if(confirm('Replace the current project with the built-in sample? Download a backup first if you want to keep this one.')){
+      project=defaultProject();selectedId=project.questlines[0].id;save();renderAll();toast('Reset to sample project');
+    }return;
+  }
+});
+document.querySelector('.out-tabs').addEventListener('click',e=>{
+  const b=e.target.closest('[data-otab]'); if(!b)return;
+  outTab=b.dataset.otab; renderOutput();
+});
+
+function copy(text,msg){
+  navigator.clipboard?.writeText(text).then(()=>toast(msg||'Copied')).catch(()=>{
+    const ta=$('#jsonArea'); if(ta){ta.value=text;ta.select();} toast('Copied to the text box');
+  });
+}
+function downloadJSON(){
+  const blob=new Blob([JSON.stringify(project,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download=(slug(project.name||'questwright'))+'_quests.json';a.click();
+  URL.revokeObjectURL(url);toast('Downloaded');
+}
+function importJSON(){
+  const raw=$('#jsonArea').value.trim();
+  if(!raw){toast('Paste a project JSON into the box first');return;}
+  try{
+    const p=JSON.parse(raw);
+    if(!p.questlines||!Array.isArray(p.questlines))throw new Error('missing questlines');
+    project=Object.assign({name:'',theme:'fantasy',baseSwitch:21,baseVar:21},p);
+    migrate(project);
+    selectedId=project.questlines[0]?.id||null;
+    save();renderAll();toast('Project loaded');
+  }catch(err){toast('That JSON didn’t parse — check for a missing bracket');}
+}
+
+/* ============================================================
+   Top bar + mode switching
+   ============================================================ */
+function bindTop(){
+  $('#projName').addEventListener('input',e=>{project.name=e.target.value;queueSave();});
+  $('#projTheme').addEventListener('change',e=>{project.theme=e.target.value;queueSave();});
+  $('#baseSwitch').addEventListener('input',e=>{project.baseSwitch=Math.max(1,+e.target.value||1);queueSave();if(mode==='output')renderOutput();});
+  $('#baseVar').addEventListener('input',e=>{project.baseVar=Math.max(1,+e.target.value||1);queueSave();if(mode==='output')renderOutput();});
+
+  $('#addQuest').addEventListener('click',()=>{const q=newQuestline(project.theme);project.questlines.push(q);selectedId=q.id;renderRail();renderEditor();queueSave();});
+  $('#addSkeleton').addEventListener('click',()=>{const q=starterQuestline(project.theme);project.questlines.push(q);selectedId=q.id;renderRail();renderEditor();queueSave();toast('Starter questline added — rename & tweak');});
+
+  $('#qlist').addEventListener('click',e=>{
+    const del=e.target.closest('[data-del]');
+    if(del){e.stopPropagation();
+      const q=project.questlines.find(x=>x.id===del.dataset.del);
+      if(confirm(`Delete questline “${q?.name||''}”?`)){
+        project.questlines=project.questlines.filter(x=>x.id!==del.dataset.del);
+        if(selectedId===del.dataset.del)selectedId=project.questlines[0]?.id||null;
+        renderRail();renderEditor();queueSave();
+      }return;}
+    const card=e.target.closest('[data-q]');
+    if(card){selectedId=card.dataset.q;renderRail();renderEditor();}
+  });
+
+  $('#modeDesign').addEventListener('click',()=>setMode('design'));
+  $('#modeOutput').addEventListener('click',()=>setMode('output'));
+}
+function setMode(m){
+  mode=m;
+  $('#modeDesign').classList.toggle('active',m==='design');
+  $('#modeOutput').classList.toggle('active',m==='output');
+  $('#designView').classList.toggle('hidden',m!=='design');
+  $('#outputView').classList.toggle('hidden',m!=='output');
+  if(m==='output')renderOutput();
+}
+
+/* ============================================================
+   Boot
+   ============================================================ */
+function syncTopInputs(){
+  $('#projName').value=project.name||'';
+  $('#projTheme').value=project.theme||'fantasy';
+  $('#baseSwitch').value=project.baseSwitch||21;
+  $('#baseVar').value=project.baseVar||21;
+}
+function renderAll(){syncTopInputs();renderRail();renderFactions();renderEditor();if(mode==='output')renderOutput();}
+
+(async function init(){
+  await load();
+  bindTop();bindEditor();bindFactions();
+  renderAll();
+})();
+</script>
+</body>
+</html>
