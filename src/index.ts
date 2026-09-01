@@ -5,6 +5,7 @@ import { html, raw } from "hono/html";
 import type { HtmlEscapedString } from "hono/utils/html";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import Stripe from "stripe";
+import { registerBuilder } from "./builder";
 
 /* ============================ Types & bindings ============================ */
 
@@ -896,5 +897,5 @@ async function streamFile(env: Bindings, key: string) {
   headers.set("etag", obj.httpEtag);
   return new Response(obj.body, { headers });
 }
-
+registerBuilder(app);
 export default app;
