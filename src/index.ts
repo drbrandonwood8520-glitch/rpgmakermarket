@@ -224,20 +224,49 @@ async function saveContent(db: D1Database, updates: Record<string, string>) {
     await db.prepare(
       `INSERT INTO content (key, value) VALUES (?, ?)
        ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now')`
-    ).bind(k, String(v).slice(0, 4000)).run();
+    ).bind(k, String(v).slice(0, 8000)).run();
   }
 }
 const editAttr = (edit: boolean | undefined, key: string) =>
   edit ? raw(` data-k="${key}" contenteditable="true" class="editable"`) : raw("");
 
+const EDIT_JS = `
+(function(){
+var sr=null;
+document.addEventListener('selectionchange',function(){var s=getSelection();if(s.rangeCount){var n=s.anchorNode;n=n&&(n.nodeType===3?n.parentElement:n);if(n&&n.closest&&n.closest('[data-k]'))sr=s.getRangeAt(0).cloneRange();}});
+function host(){if(!sr)return null;var n=sr.startContainer;n=n.nodeType===3?n.parentElement:n;return n&&n.closest?n.closest('[data-k]'):null;}
+function cmd(name,val){var h=host();if(h)h.focus();if(sr){var s=getSelection();s.removeAllRanges();s.addRange(sr);}try{document.execCommand('styleWithCSS',false,true);}catch(e){}document.execCommand(name,false,val||null);}
+document.querySelectorAll('#edtools [data-cmd]').forEach(function(b){
+ b.addEventListener('mousedown',function(e){e.preventDefault();});
+ b.addEventListener('click',function(e){e.preventDefault();var c=b.getAttribute('data-cmd');var v=b.getAttribute('data-val');var p=b.getAttribute('data-prompt');if(p){v=prompt(p,'https://');if(!v)return;}cmd(c,v);});
+});
+var col=document.getElementById('edcolor');
+if(col){col.addEventListener('input',function(){cmd('foreColor',col.value);});}
+var s=document.getElementById('edsave');
+s.addEventListener('click',async function(){s.disabled=true;s.textContent='Saving…';var u={};document.querySelectorAll('[data-k]').forEach(function(e){u[e.getAttribute('data-k')]=e.innerHTML.trim();});try{var r=await fetch('/admin/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({updates:u})});if(r.ok){location.href=location.pathname;}else{throw 0;}}catch(e){s.disabled=false;s.textContent='Save failed — retry';}});
+})();`;
+
 function editBar() {
   return html`
+    <div id="edtools" role="toolbar" aria-label="Format">
+      <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
+      <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
+      <button type="button" data-cmd="underline" title="Underline"><u>U</u></button>
+      <button type="button" data-cmd="createLink" data-prompt="Link URL:" title="Add link">🔗</button>
+      <label title="Text color">🎨<input type="color" id="edcolor" /></label>
+      <button type="button" data-cmd="fontSize" data-val="5" title="Bigger text">A+</button>
+      <button type="button" data-cmd="fontSize" data-val="3" title="Smaller text">A−</button>
+      <button type="button" data-cmd="justifyLeft" title="Align left">⯇</button>
+      <button type="button" data-cmd="justifyCenter" title="Align center">≡</button>
+      <button type="button" data-cmd="justifyRight" title="Align right">⯈</button>
+      <button type="button" data-cmd="removeFormat" title="Clear formatting">✕</button>
+    </div>
     <div id="edbar">
-      <span>✎ Editing — click any highlighted text, then Save.</span>
+      <span>✎ Click highlighted text to edit — select text and use the toolbar to format.</span>
       <button id="edsave" type="button">Save changes</button>
       <a href="?">Exit</a>
     </div>
-    <script>${raw(`(function(){var s=document.getElementById('edsave');s.addEventListener('click',async function(){s.disabled=true;s.textContent='Saving…';var u={};document.querySelectorAll('[data-k]').forEach(function(e){u[e.getAttribute('data-k')]=e.innerText.trim();});try{var r=await fetch('/admin/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({updates:u})});if(r.ok){location.href=location.pathname;}else{throw 0;}}catch(e){s.disabled=false;s.textContent='Save failed — retry';}});})();`)}</script>`;
+    <script>${raw(EDIT_JS)}</script>`;
 }
 
 function layout(
@@ -283,7 +312,7 @@ function layout(
     </nav>
   </header>
   ${opts.announce || opts.edit
-    ? html`<div class="announce"${editAttr(opts.edit, "announcement")}>${opts.announce || (opts.edit ? "Add an announcement…" : "")}</div>`
+    ? html`<div class="announce"${editAttr(opts.edit, "announcement")}>${opts.announce ? raw(opts.announce) : (opts.edit ? "Add an announcement…" : "")}</div>`
     : ""}
   <main>${opts.sidebar
     ? html`<div class="browse"><aside class="sidebar">${sidebarNav(env, opts.active)}</aside><div class="content">${opts.body}</div></div>`
@@ -346,6 +375,7 @@ function homePage(env: Bindings, products: Product[], f: { kind?: string; q?: st
   const price = priceLabel(membershipCents(env));
   const c = (k: string, d: string) => content[k] ?? d;
   const ea = (k: string) => editAttr(edit, k);
+  const rh = (k: string, d: string) => raw(content[k] != null ? content[k] : d);
   const grid = products.length
     ? raw(products.map((p) => productCard(p).toString()).join(""))
     : html`<div class="empty">Nothing here yet. <a href="/#join">Join the list</a> to hear when new items drop.</div>`;
@@ -365,15 +395,15 @@ function homePage(env: Bindings, products: Product[], f: { kind?: string; q?: st
   return html`
     <section class="featured" id="join">
       <div class="featured-body">
-        <p class="feat-kicker"${ea("hero_kicker")}>${c("hero_kicker", "Free monthly bundle")}</p>
-        <h1${ea("hero_title")}>${c("hero_title", "New plugins & assets for RPG Maker MZ & MV — every month.")}</h1>
-        <p class="feat-sub"${ea("hero_sub")}>${c("hero_sub", "Join the list and get this month's free bundle. Members get a premium bundle emailed every week.")}</p>
+        <p class="feat-kicker"${ea("hero_kicker")}>${rh("hero_kicker", "Free monthly bundle")}</p>
+        <h1${ea("hero_title")}>${rh("hero_title", "New plugins &amp; assets for RPG Maker MZ &amp; MV — every month.")}</h1>
+        <p class="feat-sub"${ea("hero_sub")}>${rh("hero_sub", "Join the list and get this month's free bundle. Members get a premium bundle emailed <strong>every week</strong>.")}</p>
         ${emailForm("hero", "Join free")}
-        <p class="microcopy">No spam — one email when a bundle drops. <a href="/membership">See membership →</a></p>
+        <p class="microcopy"${ea("hero_micro")}>${rh("hero_micro", 'No spam — one email when a bundle drops. <a href="/membership">See membership →</a>')}</p>
       </div>
     </section>
 
-    <div class="section-head"><h2${ea("section_new")}>${c("section_new", "New this week")}</h2><a class="text-link" href="/membership">Membership · ${price}/mo →</a></div>
+    <div class="section-head"><h2${ea("section_new")}>${rh("section_new", "New this week")}</h2><a class="text-link" href="/membership">Membership · ${price}/mo →</a></div>
     <div class="grid">${grid}</div>
 
     <a class="member-strip" href="/membership">
