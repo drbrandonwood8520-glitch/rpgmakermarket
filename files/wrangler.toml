@@ -1,0 +1,9 @@
+name = "my-page-builder"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "dist"
+
+# Create the namespace with:  npx wrangler kv namespace create PAGES_KV
+# then paste the returned id below.
+[[kv_namespaces]]
+binding = "PAGES_KV"
+id = "PUT_YOUR_KV_NAMESPACE_ID_HERE"

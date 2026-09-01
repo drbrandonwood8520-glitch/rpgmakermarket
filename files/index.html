@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Page Builder</title>
+<style>
+  * { box-sizing: border-box; font-family: system-ui, sans-serif; }
+  body { margin: 0; }
+  .app { display: flex; height: 100vh; }
+  .canvas { flex: 1; overflow: auto; padding: 24px; background: #f3f4f6; }
+  .side { width: 300px; border-left: 1px solid #e5e7eb; background: #fff; overflow: auto; padding: 12px; }
+  .node:hover { outline: 1px dashed #93c5fd; }
+  .node.sel { outline: 2px solid #2563eb; }
+  .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .bar a { font-size: 13px; }
+  .status { font-size: 12px; color: #16a34a; }
+  .add { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .add b { width: 100%; font-size: 12px; color: #6b7280; }
+  button { cursor: pointer; padding: 5px 10px; border: 1px solid #d1d5db; background: #fff; border-radius: 6px; font-size: 13px; }
+  button:hover { background: #f9fafb; }
+  .props { border-top: 1px solid #e5e7eb; padding-top: 12px; }
+  .phead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .phead span { display: flex; gap: 4px; }
+  .field { display: block; margin-bottom: 10px; font-size: 12px; color: #374151; }
+  .field span { display: block; margin-bottom: 3px; }
+  .field input, .field textarea, .field select { width: 100%; padding: 5px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 13px; }
+  .field input[type=color] { height: 32px; padding: 2px; }
+  .hint { color: #9ca3af; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
