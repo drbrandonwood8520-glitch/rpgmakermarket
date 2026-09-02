@@ -5,7 +5,8 @@ import { useState, useEffect } from "https://esm.sh/preact@10.23.2/hooks";
 import htm from "https://esm.sh/htm@3.1.1";
 const html = htm.bind(h);
 
-/* ---------- widget registry (add more widgets here) ---------- */
+/* ---------- widget registry ----------
+   Each widget needs a matching `case` in renderNode() in src/builder.ts. */
 const widgets = {};
 const register = (w) => (widgets[w.type] = w);
 const defaults = (t) => Object.fromEntries(widgets[t].controls.map((c) => [c.name, c.default ?? ""]));
@@ -17,20 +18,52 @@ const makeNode = (t) => ({
   children: widgets[t].isContainer ? [] : undefined,
 });
 
+const ALIGN = { left: "Left", center: "Center", right: "Right" };
+
 register({
   type: "container",
   title: "Container",
   isContainer: true,
   controls: [
+    { name: "direction", label: "Direction", type: "select", default: "column",
+      options: { column: "Stack (vertical)", row: "Row (side by side)" } },
+    { name: "justify", label: "Justify", type: "select", default: "flex-start",
+      options: { "flex-start": "Start", center: "Center", "flex-end": "End",
+        "space-between": "Space between", "space-around": "Space around" } },
+    { name: "align", label: "Align items", type: "select", default: "stretch",
+      options: { stretch: "Stretch", "flex-start": "Start", center: "Center", "flex-end": "End" } },
+    { name: "wrap", label: "Wrap", type: "select", default: "wrap",
+      options: { wrap: "Wrap", nowrap: "No wrap" } },
     { name: "gap", label: "Gap (px)", type: "number", default: 12 },
     { name: "padding", label: "Padding (px)", type: "number", default: 24 },
-    { name: "align", label: "Align", type: "select", default: "stretch",
-      options: { stretch: "Stretch", "flex-start": "Left", center: "Center", "flex-end": "Right" } },
+    { name: "maxWidth", label: "Max width (px, 0=full)", type: "number", default: 0 },
     { name: "background", label: "Background", type: "color", default: "#ffffff" },
   ],
+  render: (s, kids) => {
+    const mw = +s.maxWidth || 0;
+    return html`<div style=${{
+      display: "flex", flexDirection: s.direction || "column",
+      justifyContent: s.justify || "flex-start", alignItems: s.align || "stretch",
+      flexWrap: s.wrap || "wrap", gap: (+s.gap || 0) + "px", padding: (+s.padding || 0) + "px",
+      background: s.background, maxWidth: mw ? mw + "px" : "none",
+      marginLeft: mw ? "auto" : undefined, marginRight: mw ? "auto" : undefined,
+    }}>${kids}</div>`;
+  },
+});
+
+register({
+  type: "grid",
+  title: "Grid",
+  isContainer: true,
+  controls: [
+    { name: "columns", label: "Columns", type: "number", default: 3 },
+    { name: "gap", label: "Gap (px)", type: "number", default: 16 },
+    { name: "padding", label: "Padding (px)", type: "number", default: 0 },
+  ],
   render: (s, kids) =>
-    html`<div style=${{ display: "flex", flexDirection: "column", gap: (+s.gap || 0) + "px",
-      padding: (+s.padding || 0) + "px", alignItems: s.align, background: s.background }}>${kids}</div>`,
+    html`<div style=${{ display: "grid",
+      gridTemplateColumns: `repeat(${Math.max(1, +s.columns || 1)}, 1fr)`,
+      gap: (+s.gap || 0) + "px", padding: (+s.padding || 0) + "px" }}>${kids}</div>`,
 });
 
 register({
@@ -40,7 +73,7 @@ register({
     { name: "text", label: "Text", type: "text", default: "Your Heading" },
     { name: "level", label: "Level", type: "select", default: "h2", options: { h1: "H1", h2: "H2", h3: "H3" } },
     { name: "color", label: "Color", type: "color", default: "#111111" },
-    { name: "align", label: "Align", type: "select", default: "left", options: { left: "Left", center: "Center", right: "Right" } },
+    { name: "align", label: "Align", type: "select", default: "left", options: ALIGN },
   ],
   render: (s) => {
     const tag = ["h1", "h2", "h3"].includes(s.level) ? s.level : "h2";
@@ -55,9 +88,11 @@ register({
     { name: "text", label: "Text", type: "textarea", default: "Some paragraph text." },
     { name: "color", label: "Color", type: "color", default: "#333333" },
     { name: "size", label: "Font size (px)", type: "number", default: 16 },
+    { name: "align", label: "Align", type: "select", default: "left", options: ALIGN },
   ],
   render: (s) =>
-    html`<p style=${{ color: s.color, fontSize: (+s.size || 16) + "px", margin: 0, lineHeight: 1.6 }}>${s.text}</p>`,
+    html`<p style=${{ color: s.color, fontSize: (+s.size || 16) + "px", textAlign: s.align || "left",
+      margin: 0, lineHeight: 1.6 }}>${s.text}</p>`,
 });
 
 register({
@@ -68,11 +103,52 @@ register({
     { name: "href", label: "Link URL", type: "text", default: "#" },
     { name: "bg", label: "Background", type: "color", default: "#2563eb" },
     { name: "color", label: "Text color", type: "color", default: "#ffffff" },
+    { name: "align", label: "Align", type: "select", default: "left", options: ALIGN },
   ],
   render: (s) =>
-    html`<a href=${s.href || "#"} onClick=${(e) => e.preventDefault()}
-      style=${{ display: "inline-block", padding: "10px 18px", background: s.bg, color: s.color,
-        borderRadius: "6px", textDecoration: "none", fontWeight: 600 }}>${s.label}</a>`,
+    html`<div style=${{ textAlign: s.align || "left" }}>
+      <a href=${s.href || "#"} onClick=${(e) => e.preventDefault()}
+        style=${{ display: "inline-block", padding: "10px 18px", background: s.bg, color: s.color,
+          borderRadius: "6px", textDecoration: "none", fontWeight: 600 }}>${s.label}</a>
+    </div>`,
+});
+
+register({
+  type: "image",
+  title: "Image",
+  controls: [
+    { name: "src", label: "Image URL", type: "text", default: "" },
+    { name: "alt", label: "Alt text", type: "text", default: "" },
+    { name: "width", label: "Width (%)", type: "number", default: 100 },
+    { name: "radius", label: "Corner radius (px)", type: "number", default: 0 },
+    { name: "align", label: "Align", type: "select", default: "center", options: ALIGN },
+  ],
+  render: (s) =>
+    html`<div style=${{ textAlign: s.align || "center" }}>
+      <img src=${s.src || ""} alt=${s.alt || ""}
+        style=${{ width: (+s.width || 100) + "%", maxWidth: "100%",
+          borderRadius: (+s.radius || 0) + "px", display: "inline-block" }} />
+    </div>`,
+});
+
+register({
+  type: "spacer",
+  title: "Spacer",
+  controls: [{ name: "height", label: "Height (px)", type: "number", default: 40 }],
+  render: (s) => html`<div style=${{ height: (+s.height || 0) + "px" }}></div>`,
+});
+
+register({
+  type: "divider",
+  title: "Divider",
+  controls: [
+    { name: "color", label: "Color", type: "color", default: "#e5e7eb" },
+    { name: "thickness", label: "Thickness (px)", type: "number", default: 1 },
+    { name: "margin", label: "Vertical margin (px)", type: "number", default: 12 },
+  ],
+  render: (s) =>
+    html`<hr style=${{ border: "none",
+      borderTop: `${+s.thickness || 1}px solid ${s.color}`, margin: `${+s.margin || 0}px 0` }} />`,
 });
 
 /* ---------- immutable tree helpers ---------- */
